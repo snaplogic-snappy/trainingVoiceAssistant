@@ -1,0 +1,3305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emirates Training — Feedback Voice Agent</title>
+    <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
+    <style>
+        :root {
+            --red: #C60C30;
+            --dark-red: #8B001F;
+            --gold: #D4A843;
+            --gold-light: #F0D898;
+            --sidebar-bg: #160409;
+            --sidebar-border: rgba(212,168,67,0.2);
+            --text-light: #f0e6e0;
+            --text-muted: #9e8a7c;
+            --main-bg: #f7f3f0;
+            --card-bg: #ffffff;
+            --border: #e8ddd8;
+            --success: #059669;
+            --pending-color: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--sidebar-bg);
+            min-height: 100vh;
+            color: #1a1a1a;
+        }
+
+        /* ─── API KEY CONFIGURATION ─────────────────────────────────── */
+        .config-banner {
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+            color: #1a1a1a;
+            padding: 12px 24px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            border-bottom: 2px solid var(--gold);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .config-banner:hover {
+            background: var(--gold);
+        }
+        .config-banner.configured {
+            background: var(--success);
+            color: white;
+        }
+        .config-modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .config-modal.visible { display: flex; }
+        .config-card {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+        }
+        .config-card h2 {
+            color: var(--red);
+            margin-bottom: 16px;
+            font-size: 24px;
+        }
+        .config-card label {
+            display: block;
+            margin-top: 16px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+        .config-card input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        .config-card .btn-save {
+            background: var(--red);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 24px;
+            width: 100%;
+        }
+        .config-card .btn-save:hover {
+            background: var(--dark-red);
+        }
+
+        /* ─── LOGIN SCREEN ─────────────────────────────────── */
+        .login-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--dark-red) 0%, var(--sidebar-bg) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .login-overlay.hidden { display: none; }
+
+        .login-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 20px 80px rgba(0,0,0,0.4);
+            padding: 48px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .login-logo {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--red);
+            margin-bottom: 8px;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: var(--red);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .login-btn:hover {
+            background: var(--dark-red);
+        }
+
+        /* ─── MAIN LAYOUT ──────────────────────────────────── */
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* ─── SIDEBAR ──────────────────────────────────────── */
+        .sidebar {
+            width: 280px;
+            background: #ffffff;
+            border-right: 1px solid rgba(198,12,48,0.15);
+            box-shadow: 2px 0 12px rgba(0,0,0,0.06);
+            display: flex;
+            flex-direction: column;
+            color: var(--red);
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid rgba(198,12,48,0.12);
+        }
+
+        .sidebar-logo {
+            margin-bottom: 12px;
+        }
+
+        .sidebar-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--red);
+            margin-bottom: 2px;
+        }
+
+        .sidebar-subtitle {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 0;
+        }
+
+        .nav-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-item:hover {
+            background: rgba(198,12,48,0.06);
+            color: var(--red);
+        }
+
+        .nav-item.active {
+            background: rgba(198,12,48,0.08);
+            color: var(--red);
+            border-left: 3px solid var(--red);
+        }
+
+        .sidebar-footer {
+            padding: 16px 24px;
+            border-top: 1px solid rgba(198,12,48,0.12);
+            font-size: 12px;
+            color: #999;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        /* ─── MAIN CONTENT ─────────────────────────────────── */
+        .main-content {
+            flex: 1;
+            background: var(--main-bg);
+            overflow-y: auto;
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        /* ─── TOPBAR ───────────────────────────────────────── */
+        .topbar {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .topbar-left h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        .topbar-left p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .mode-badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: none;
+        }
+
+        .mode-badge.attendance { background: #dbeafe; color: #1e40af; }
+        .mode-badge.daily { background: #fef3c7; color: #92400e; }
+        .mode-badge.sidenote { background: #d1fae5; color: #065f46; }
+        .mode-badge.uniform { background: #fce7f3; color: #9f1239; }
+        .mode-badge.auto { background: #e2e8f0; color: #334155; }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .status-dot-bar {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+        .status-dot-bar.connected {
+            background: #22c55e;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-dot-bar.ended {
+            background: #3b82f6;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        /* ─── SESSION VIEW ─────────────────────────────────── */
+        .session-view {
+            padding: 32px;
+        }
+
+        .controls-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--red);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--dark-red);
+        }
+
+        .btn-primary:disabled {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        /* ─── SESSION INFO ─────────────────────────────────── */
+        .session-info {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .session-info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        /* ─── PLACEHOLDER ──────────────────────────────────── */
+        .placeholder {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 48px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .placeholder-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .placeholder h3 {
+            font-size: 20px;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        .placeholder p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        /* ─── PARTICIPANTS ─────────────────────────────────── */
+        .participants-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .participants-card h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #1a1a1a;
+        }
+
+        .participants-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .participant-chip {
+            padding: 5px 14px;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 500;
+        }
+
+        /* ─── SUMMARY ──────────────────────────────────────── */
+        .summary-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .summary-card.visible {
+            display: block;
+        }
+
+        .summary-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .summary-participant {
+            padding: 12px;
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .sp-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #065f46;
+            margin-bottom: 4px;
+        }
+
+        .sp-badge {
+            font-size: 12px;
+            color: #059669;
+        }
+
+        .summary-link {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .summary-link a {
+            color: var(--red);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .summary-link a:hover {
+            text-decoration: underline;
+        }
+
+        /* ─── DASHBOARD ────────────────────────────────────── */
+        .dashboard-view {
+            padding: 32px;
+        }
+
+        .dashboard-controls {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .filter-row label {
+            width: 130px;
+            flex-shrink: 0;
+        }
+
+        .filter-row input[type="date"],
+        .filter-row select {
+            width: 200px;
+        }
+
+        .date-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .date-wrapper::after {
+            content: "All Dates";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            pointer-events: none;
+            font-size: 14px;
+            background: white;
+        }
+
+        .date-wrapper.has-value::after {
+            display: none;
+        }
+
+        .date-wrapper:not(.has-value) input[type="date"] {
+            color: transparent;
+        }
+
+        .dashboard-controls label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .dashboard-controls input,
+        .dashboard-controls select {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .dashboard-controls button {
+            padding: 8px 16px;
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .dashboard-controls button:hover {
+            background: var(--dark-red);
+        }
+
+        /* ── FEEDBACK TABLES ─────────────────────────────────────────────── */
+        .feedback-section { margin-bottom: 18px; }
+        .feedback-section-title {
+            font-size: 13px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.5px; color: #334155;
+            padding: 7px 10px; margin-bottom: 0; display: block;
+            border-left: 4px solid #94a3b8;
+        }
+        .feedback-section-title.attendance { border-left-color: #3b82f6; }
+        .feedback-section-title.daily      { border-left-color: #f59e0b; }
+        .feedback-section-title.sidenote   { border-left-color: #10b981; }
+        .feedback-section-title.uniform    { border-left-color: #f43f5e; }
+        .feedback-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+        .feedback-table th {
+            background: #f8fafc; padding: 6px 12px; text-align: left;
+            font-size: 11px; text-transform: uppercase; color: #94a3b8;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .feedback-table td { padding: 7px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; overflow: hidden; word-wrap: break-word; }
+        .feedback-table tr.trainee-group-start td { border-top: 1px solid #e2e8f0; }
+        .feedback-table .trainee-name { font-weight: 600; color: #1e293b; min-width: 140px; }
+        .fb-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .fb-badge.green { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .fb-badge.red   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .fb-badge.amber { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+        .fb-badge.gray  { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+
+        .dashboard-reviews {
+            display: grid;
+            gap: 16px;
+        }
+
+        .review-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .review-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .review-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .review-dates {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .review-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .review-recorded {
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+        }
+
+        .review-type {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .review-type.attendance { background: #dbeafe; color: #1e40af; }
+        .review-type.daily { background: #fef3c7; color: #92400e; }
+        .review-type.sidenote { background: #d1fae5; color: #065f46; }
+        .review-type.uniform { background: #fce7f3; color: #9f1239; }
+        .review-type.auto { background: #e2e8f0; color: #334155; }
+
+        .review-trainees {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .review-details {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            display: none;
+        }
+
+        .review-details.visible {
+            display: block;
+        }
+
+        .trainee-feedback {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .trainee-feedback h4 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        /* ── PER-TRAINEE SCORE CARDS ── */
+        .trainee-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .trainee-card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+        }
+
+        .trainee-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            grid-column: 1 / -1;
+            margin-bottom: 6px;
+        }
+
+        .trainee-card-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+
+        .score-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 800;
+            flex-shrink: 0;
+            color: #fff;
+        }
+
+        .score-badge.high   { background: #059669; }
+        .score-badge.mid    { background: #d97706; }
+        .score-badge.low    { background: #dc2626; }
+
+        .trainee-section {
+            grid-column: 1 / -1;
+        }
+
+        .trainee-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 3px;
+        }
+
+        .trainee-section-label.green { color: #059669; }
+        .trainee-section-label.amber { color: #d97706; }
+
+        .trainee-section-text {
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.5;
+        }
+
+        .session-summary-box {
+            background: linear-gradient(135deg, rgba(198,12,48,0.06) 0%, rgba(212,168,67,0.08) 100%);
+            border: 1px solid rgba(198,12,48,0.15);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-top: 12px;
+        }
+
+        .session-summary-box h5 {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--dark-red);
+            margin-bottom: 4px;
+        }
+
+        .session-summary-box p {
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.5;
+        }
+
+        .feedback-item {
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .feedback-category {
+            font-weight: 600;
+            color: #64748b;
+            margin-right: 6px;
+        }
+
+        .feedback-rating {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .feedback-rating.satisfactory {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .feedback-rating.unsatisfactory {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .feedback-rating.pass {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .feedback-rating.fail {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .feedback-rating.compliant {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .feedback-comment {
+            color: #475569;
+            font-style: italic;
+        }
+
+        .empty-state {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 48px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .processing-indicator {
+            display: none;
+            margin-top: 16px;
+            padding: 16px;
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #92400e;
+            text-align: center;
+        }
+
+        .processing-indicator.visible {
+            display: block;
+        }
+
+        /* ─── WIDGET CONTAINER ─────────────────────────────── */
+        #widgetContainer {
+            /* Widget will be inline in the widget-area */
+        }
+
+        elevenlabs-convai {
+            --elevenlabs-convai-primary-color: #C60C30;
+            --elevenlabs-convai-widget-size: 120px;
+        }
+
+        /* Session Buttons Row */
+        .session-btn-row {
+            display: none;
+            flex-direction: row;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 16px;
+        }
+        .session-btn-row.visible { display: flex; }
+
+        .btn-cancel-session {
+            padding: 12px 24px;
+            background: var(--red);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-cancel-session:hover { background: var(--dark-red); transform: translateY(-1px); }
+
+        /* Session Cancelled Toast */
+        .toast-cancelled {
+            display: none;
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+            z-index: 99999;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .toast-cancelled.visible {
+            display: block;
+            animation: toastIn 0.3s ease;
+        }
+
+        /* Session Complete Toast */
+        .toast-complete {
+            display: none;
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #059669;
+            color: white;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 8px 28px rgba(5,150,105,0.35);
+            z-index: 99999;
+            white-space: nowrap;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            border: 1.5px solid rgba(255,255,255,0.25);
+        }
+        .toast-complete.visible {
+            display: flex;
+            animation: toastIn 0.3s ease;
+        }
+        .toast-complete-link {
+            opacity: 0.9;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .toast-complete-link:hover {
+            opacity: 1;
+        }
+
+        @keyframes toastIn {
+            from { opacity: 0; top: 10px; }
+            to   { opacity: 1; top: 24px; }
+        }
+
+        /* ─── TRANSCRIPT / ANALYSIS POPUP ──────────────────────── */
+        .popup-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.72);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 20000;
+        }
+        .popup-overlay.visible { display: flex; }
+        .popup-box {
+            background: white;
+            border-radius: 12px;
+            padding: 28px 32px;
+            max-width: 740px;
+            width: 92%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+            position: relative;
+        }
+        .popup-box h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--red);
+            margin-bottom: 16px;
+        }
+        .popup-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .popup-close:hover { color: var(--red); background: #f1f5f9; }
+
+        /* Transcript messages */
+        .transcript-message {
+            padding: 9px 13px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+        .transcript-message.agent {
+            background: #fdf0f2;
+            border-left: 3px solid var(--red);
+        }
+        .transcript-message.user {
+            background: #f8fafc;
+            border-left: 3px solid #94a3b8;
+        }
+        .transcript-role {
+            font-weight: 700;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 4px;
+            color: #64748b;
+        }
+
+        /* Analysis cards */
+        .analysis-trainee {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .analysis-trainee h3 {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .analysis-category {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 3px;
+            font-size: 13px;
+        }
+        .analysis-category-name {
+            font-weight: 600;
+            color: #475569;
+        }
+        .analysis-notes {
+            color: #374151;
+            font-size: 13px;
+            font-style: italic;
+            padding-left: 36px;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        .analysis-summary-box {
+            background: linear-gradient(135deg, rgba(198,12,48,0.05) 0%, rgba(212,168,67,0.07) 100%);
+            border: 1px solid rgba(198,12,48,0.12);
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-top: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .analysis-summary-box strong {
+            color: var(--dark-red);
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        /* ─── TOPBAR PROFILE ───────────────────────────────────── */
+        .topbar-profile {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: white;
+            transition: background 0.2s;
+            user-select: none;
+        }
+        .topbar-profile:hover {
+            background: #f8fafc;
+        }
+        .topbar-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            color: white;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .topbar-username {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+        .profile-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            min-width: 180px;
+            padding: 12px;
+            z-index: 5000;
+        }
+        .profile-dropdown.open { display: block; }
+        .profile-dropdown-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 2px;
+        }
+        .profile-dropdown-role {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        .profile-dropdown-divider {
+            height: 1px;
+            background: var(--border);
+            margin-bottom: 10px;
+        }
+        .profile-logout-btn {
+            width: 100%;
+            padding: 8px 12px;
+            background: #fff1f2;
+            color: var(--red);
+            border: 1px solid #fecaca;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s;
+        }
+        .profile-logout-btn:hover {
+            background: #fee2e2;
+        }
+        .status-bar:has(.status-text:empty) {
+            display: none;
+        }
+
+        /* Training Records action buttons */
+        .review-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+        }
+        .btn-action {
+            padding: 7px 14px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #475569;
+            transition: all 0.2s;
+        }
+        .btn-action:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+        .btn-action.primary {
+            background: var(--red);
+            color: white;
+            border-color: var(--red);
+        }
+        .btn-action.primary:hover { background: var(--dark-red); }
+        .btn-action.btn-retry-analysis {
+            border-color: #c7d2fe;
+            color: #4338ca;
+            background: #eef2ff;
+        }
+        .btn-action.btn-retry-analysis:hover {
+            background: #e0e7ff;
+            border-color: #a5b4fc;
+        }
+        .btn-action.btn-retry-analysis:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* ─── SHARING STATUS ────────────────────────────────────────────── */
+        .sharing-status-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            align-items: center;
+        }
+        .sharing-status-row .sharing-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 0.05em;
+            margin-right: 4px;
+        }
+        .sharing-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 20px;
+            border: 1px solid transparent;
+        }
+        .sharing-badge.sent    { background: #dcfce7; color: #16a34a; border-color: #bbf7d0; }
+        .sharing-badge.failed  { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+        .sharing-badge.pending { background: #fef9c3; color: #ca8a04; border-color: #fef08a; }
+        .sharing-badge.not-shared { background: #f1f5f9; color: #94a3b8; border-color: #e2e8f0; }
+    </style>
+</head>
+<body>
+
+    <!-- SESSION CANCELLED TOAST -->
+    <div class="toast-cancelled" id="toastCancelled">✕ Session Cancelled</div>
+
+    <!-- SESSION COMPLETE TOAST -->
+    <div class="toast-complete" id="toastComplete" onclick="goToTrainingRecordsItem(lastSavedTimestamp)">
+        ✅ Session Complete &nbsp;·&nbsp; <span class="toast-complete-link">View in Training Records →</span>
+    </div>
+
+    <!-- CONFIG BANNER -->
+    <div class="config-banner" id="configBanner" onclick="openConfig()">
+        ⚙️ Click to configure ElevenLabs API key (required)
+    </div>
+
+    <!-- CONFIG MODAL -->
+    <div class="config-modal" id="configModal" onclick="if(event.target===this)closeConfig()">
+        <div class="config-card" style="position:relative;">
+            <button class="popup-close" onclick="closeConfig()">✕</button>
+            <h2>⚙️ API Configuration</h2>
+            <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
+                Configure your API keys below. All values are stored locally in your browser only.
+            </p>
+
+            <label>ElevenLabs API Key</label>
+            <input type="password" id="inputElevenLabsKey" placeholder="sk_..." />
+
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
+                <div style="font-size: 13px; font-weight: 700; color: #C60C30; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">SnapLogic Orchestrator (optional)</div>
+
+                <label>API URL</label>
+                <input type="text" id="inputSnapLogicUrl" placeholder="https://..." style="font-family: monospace; font-size: 12px;" />
+
+                <label>Bearer Token <span style="font-weight: 400; color: #999;">(optional)</span></label>
+                <input type="password" id="inputSnapLogicToken" placeholder="Leave empty if not required" />
+            </div>
+
+            <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
+                <div style="font-size: 13px; font-weight: 700; color: #C60C30; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Sharing Pipeline (optional)</div>
+                <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Automatically delivers structured feedback to Email, Teams, SharePoint, and the Training System after each session.</p>
+
+                <label>Sharing Pipeline URL <span style="font-weight: 400; color: #999;">(optional)</span></label>
+                <input type="text" id="inputSharingUrl" placeholder="https://... (Email, Teams, SharePoint delivery)" style="font-family: monospace; font-size: 12px;" />
+            </div>
+
+            <button class="btn-save" onclick="saveApiKeys()">💾 Save Configuration</button>
+        </div>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-card">
+            <div class="login-logo">✈️</div>
+            <div class="login-title">Emirates Training</div>
+            <div class="login-subtitle">Feedback Voice Agent</div>
+            <input type="text" class="login-input" id="usernameInput" placeholder="Username" onkeydown="if(event.key==='Enter') login()" />
+            <input type="password" class="login-input" id="passwordInput" placeholder="Password" style="margin-top:10px;" onkeydown="if(event.key==='Enter') login()" />
+            <button class="login-btn" onclick="login()">Continue</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div class="app-container">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/Emirates_logo.svg"
+                         alt="Emirates" style="width:150px;height:auto;display:block;"
+                         onerror="this.style.display='none';" />
+                </div>
+                <div class="sidebar-title">Emirates Training</div>
+                <div class="sidebar-subtitle">Feedback Voice Agent</div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="nav-item active" onclick="switchView('session')">
+                    <span>🎙️</span> New Session
+                </div>
+                <div class="nav-item" onclick="switchView('dashboard')">
+                    <span>📊</span> Training Records
+                </div>
+            </div>
+
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- TOPBAR -->
+            <div class="topbar">
+                <div class="topbar-left" id="topbarLeft">
+                    <h1 id="topbarTitle">Ready to Begin</h1>
+                    <p id="topbarSub">Select a date, then click Start Voice Session</p>
+                </div>
+                <div class="topbar-right">
+                    <span class="mode-badge" id="modeBadge"></span>
+                    <div class="status-bar" id="statusBar" style="display:none;">
+                        <div class="status-dot-bar" id="statusDot"></div>
+                        <div class="status-text" id="statusText"></div>
+                    </div>
+                    <div class="topbar-profile" id="topbarProfile" onclick="toggleProfileMenu()">
+                        <div class="topbar-avatar" id="topbarAvatar"></div>
+                        <div class="topbar-username" id="topbarUsername"></div>
+                        <span style="font-size:10px; color:#94a3b8; margin-left:2px;">▾</span>
+                        <div class="profile-dropdown" id="profileDropdown">
+                            <div class="profile-dropdown-name" id="profileDropdownName"></div>
+                            <div class="profile-dropdown-role" id="profileDropdownEmail" style="margin-bottom:0;font-size:11px;color:#94a3b8;"></div>
+                            <div class="profile-dropdown-role">Trainer</div>
+                            <div class="profile-dropdown-divider"></div>
+                            <button class="profile-logout-btn" style="color:#475569;border:none;" onclick="openProfileEdit(event)">✏️ Edit Profile</button>
+                            <button class="profile-logout-btn" onclick="logout(event)">⎋ Log Out</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SESSION VIEW -->
+            <div class="content-section active" id="sessionView">
+                <div class="session-view">
+                    <!-- CONTROLS -->
+                    <div class="controls-card">
+                        <div class="controls-grid">
+                            <div class="control-group">
+                                <label>Training Date</label>
+                                <input type="date" id="dateSelect" onchange="loadTraineesForDate()" />
+                            </div>
+                            <div class="control-group" style="display: flex; align-items: flex-end;">
+                                <div class="btn-group" style="width: 100%;">
+                                    <button class="btn btn-primary" id="btnStart" onclick="startSession()">
+                                        🎙️ Start Voice Session
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="processing-indicator" id="processingIndicator">
+                            🤖 ElevenLabs is analysing the conversation... Please wait.
+                        </div>
+                    </div>
+
+                    <!-- SESSION INFO -->
+                    <div class="session-info" id="sessionInfoBlock">
+                        <div class="session-info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Date</div>
+                                <div class="info-value" id="sessionDateLabel">—</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Mode</div>
+                                <div class="info-value" id="sessionModeLabel">Auto</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Trainees</div>
+                                <div class="info-value" id="sessionCountLabel">—</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PLACEHOLDER -->
+                    <div class="placeholder" id="placeholder">
+                        <div class="placeholder-icon">🎯</div>
+                        <h3>Select a Training Date</h3>
+                        <p>Choose a date above to load trainees and begin voice feedback</p>
+                    </div>
+
+                    <!-- PARTICIPANTS -->
+                    <div class="participants-card" id="participantsCard" style="display: none;">
+                        <h3>Trainees</h3>
+                        <div class="participants-grid" id="participantsGrid"></div>
+                    </div>
+
+                    <!-- WIDGET AREA (for voice session) -->
+                    <div style="display: flex; flex-direction: column; align-items: center; gap: 1.5rem; margin-top: 2rem;">
+                        <div id="widgetContainer"></div>
+
+                        <div class="session-btn-row" id="sessionBtnRow">
+                            <button class="btn-cancel-session" id="btnCancelSession" onclick="cancelSession()">
+                                ✕ Cancel Session
+                            </button>
+                        </div>
+
+                        <!-- SUMMARY -->
+                        <div class="summary-card" id="summaryCard">
+                            <h3>✅ Session Complete</h3>
+                            <div class="summary-grid" id="summaryGrid"></div>
+                            <div class="summary-link">
+                                <a href="#" onclick="goToTrainingRecordsItem(lastSavedTimestamp); return false;">→ View this session in Training Records</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DASHBOARD VIEW -->
+            <div class="content-section" id="dashboardView">
+                <div class="dashboard-view">
+                    <div class="dashboard-controls">
+                        <div class="filter-row">
+                            <label>Filter by Date:</label>
+                            <div class="date-wrapper has-value" id="dateFilterWrapper">
+                                <input type="date" id="dashboardDateFilter" onchange="toggleDateWrapper(this)" />
+                            </div>
+                            <button onclick="filterByDate()">Filter</button>
+                            <button onclick="showAllDates()" style="background: #f1f5f9; color: #475569;">Show All</button>
+                        </div>
+                        <div class="filter-row">
+                            <label>Filter by Type:</label>
+                            <select id="dashboardModeFilter">
+                                <option value="">All Types</option>
+                                <option value="attendance">Attendance &amp; Punctuality</option>
+                                <option value="daily">Daily Observation</option>
+                                <option value="sidenote">Practical Assessment</option>
+                                <option value="uniform">Uniform Standards</option>
+                            </select>
+                            <button onclick="filterByType()">Filter</button>
+                            <button onclick="showAllTypes()" style="background: #f1f5f9; color: #475569;">Show All</button>
+                        </div>
+                    </div>
+                    <div class="dashboard-reviews" id="dashboardReviews"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TRANSCRIPT POPUP -->
+    <div class="popup-overlay" id="transcriptPopup">
+        <div class="popup-box">
+            <button class="popup-close" onclick="closePopup('transcriptPopup')">✕</button>
+            <button id="transcriptDownloadBtn" onclick="downloadCurrentTranscript()" style="display:none;position:absolute;top:14px;right:52px;font-size:12px;font-weight:600;padding:5px 11px;border:1px solid #e2e8f0;border-radius:6px;background:white;color:#475569;cursor:pointer;">⬇️ Download</button>
+            <h2>📄 Session Transcript</h2>
+            <div id="transcriptContent"></div>
+        </div>
+    </div>
+
+    <!-- ANALYSIS POPUP -->
+    <div class="popup-overlay" id="analysisPopup">
+        <div class="popup-box">
+            <button class="popup-close" onclick="closePopup('analysisPopup')">✕</button>
+            <h2>🔍 Transcript Analysis</h2>
+            <div id="analysisContent"></div>
+        </div>
+    </div>
+
+    <!-- PROFILE EDIT MODAL -->
+    <div class="popup-overlay" id="profileEditModal">
+        <div class="popup-box" style="max-width:400px;padding:28px;">
+            <button class="popup-close" onclick="closeProfileEdit()">✕</button>
+            <h2 style="margin-bottom:20px;">👤 Edit Profile</h2>
+            <div style="margin-bottom:18px;">
+                <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:5px;">Username</label>
+                <div id="profileUsername" style="padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;background:#f8fafc;color:#94a3b8;font-family:monospace;"></div>
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:5px;">First Name</label>
+                <input type="text" id="profileFirstName" placeholder="First name" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:5px;">Last Name</label>
+                <input type="text" id="profileLastName" placeholder="Last name" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:24px;">
+                <label style="font-size:12px;font-weight:600;color:#64748b;display:block;margin-bottom:5px;">Email</label>
+                <input type="email" id="profileEmail" placeholder="email@example.com" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;">
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button onclick="closeProfileEdit()" style="padding:8px 18px;border:1px solid #e2e8f0;border-radius:8px;background:white;cursor:pointer;font-size:14px;">Cancel</button>
+                <button onclick="saveProfileEdit()" style="padding:8px 18px;background:var(--red);color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Save</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ── CONFIGURATION & STATE ────────────────────────────────────────────────
+    const AGENT_ID = 'agent_4601kjawzyfcfystqx9wne5aj5ts';
+    let currentUser = null;
+    let sessionActive = false;
+    let sessionCancelled = false;
+    let currentMode = 'attendance';
+    let selectedDate = null;
+    let PARTICIPANTS = [];
+    let currentConversationId = null;
+    let currentWidget = null;
+    let lastSavedTimestamp = null;
+    let sessionEndHandled = false;
+    let callConnected = false;
+    let _callEndDetectionCleanup = null;
+    let _transcriptDownloadData = null;
+
+    const MODE_LABELS = {
+        attendance: 'Attendance & Punctuality',
+        daily: 'Daily Observation',
+        sidenote: 'Practical Assessment',
+        uniform: 'Uniform Standards',
+        auto: 'Auto'
+    };
+
+    // ── API KEY MANAGEMENT ───────────────────────────────────────────────────
+
+    function openConfig() {
+        const keys = getApiKeys();
+        document.getElementById('inputElevenLabsKey').value = keys.elevenlabs || '';
+        document.getElementById('inputSnapLogicUrl').value = keys.snaplogicUrl || '';
+        document.getElementById('inputSnapLogicToken').value = keys.snaplogicToken || '';
+        document.getElementById('inputSharingUrl').value = keys.sharingUrl || '';
+        document.getElementById('configModal').classList.add('visible');
+    }
+
+    function closeConfig() {
+        document.getElementById('configModal').classList.remove('visible');
+    }
+
+    function saveApiKeys() {
+        const elevenlabs = document.getElementById('inputElevenLabsKey').value.trim();
+        const snaplogicUrl = document.getElementById('inputSnapLogicUrl').value.trim();
+        const snaplogicToken = document.getElementById('inputSnapLogicToken').value.trim();
+        const sharingUrl = document.getElementById('inputSharingUrl').value.trim();
+
+        if (!elevenlabs) {
+            alert('ElevenLabs API key is required.');
+            return;
+        }
+
+        localStorage.setItem('apiKeys', JSON.stringify({ elevenlabs, snaplogicUrl, snaplogicToken, sharingUrl }));
+        document.getElementById('configModal').classList.remove('visible');
+        updateConfigBanner();
+    }
+
+    function getApiKeys() {
+        const stored = localStorage.getItem('apiKeys');
+        return stored ? JSON.parse(stored) : {};
+    }
+
+    function updateConfigBanner() {
+        const keys = getApiKeys();
+        const banner = document.getElementById('configBanner');
+        if (!keys.elevenlabs) {
+            banner.textContent = '⚙️ Click to configure ElevenLabs API key (required)';
+            banner.classList.remove('configured');
+        } else if (keys.snaplogicUrl) {
+            banner.textContent = '✅ ElevenLabs + SnapLogic' + (keys.sharingUrl ? ' + Sharing' : '') + ' configured';
+            banner.classList.add('configured');
+        } else {
+            banner.textContent = '✅ ElevenLabs configured — SnapLogic not set';
+            banner.classList.add('configured');
+        }
+    }
+
+    function checkApiKeys() {
+        updateConfigBanner();
+    }
+
+    // ── LOGIN ────────────────────────────────────────────────────────────────
+
+    const VALID_CREDENTIALS = { 'toni': 'toni', 'tara': 'tara' };
+
+    function setUserUI(username) {
+        const profile = getProfile(username);
+        const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || username;
+        const initial = (profile.firstName || username)[0].toUpperCase();
+        document.getElementById('topbarAvatar').textContent = initial;
+        document.getElementById('topbarUsername').textContent = displayName;
+        document.getElementById('profileDropdownName').textContent = displayName;
+        document.getElementById('profileDropdownEmail').textContent = profile.email || '';
+    }
+
+    function login() {
+        const username = document.getElementById('usernameInput').value.trim().toLowerCase();
+        const password = document.getElementById('passwordInput').value.trim();
+        if (!username || !password) {
+            alert('Please enter your username and password.');
+            return;
+        }
+        if (VALID_CREDENTIALS[username] !== password) {
+            alert('Invalid username or password.');
+            return;
+        }
+        currentUser = username;
+        sessionStorage.setItem('currentUser', username);
+        document.getElementById('loginOverlay').classList.add('hidden');
+        setUserUI(username);
+    }
+
+    function checkAuth() {
+        const stored = sessionStorage.getItem('currentUser');
+        if (stored && VALID_CREDENTIALS[stored.toLowerCase()] !== undefined) {
+            currentUser = stored;
+            document.getElementById('loginOverlay').classList.add('hidden');
+            setUserUI(stored);
+        }
+    }
+
+    function logout(e) {
+        if (e) e.stopPropagation();
+        sessionStorage.removeItem('currentUser');
+        currentUser = null;
+        document.getElementById('loginOverlay').classList.remove('hidden');
+        document.getElementById('usernameInput').value = '';
+        document.getElementById('passwordInput').value = '';
+        document.getElementById('profileDropdown').classList.remove('open');
+    }
+
+    function toggleProfileMenu() {
+        document.getElementById('profileDropdown').classList.toggle('open');
+    }
+
+    // ── USER PROFILE ─────────────────────────────────────────────────────────
+
+    function getProfile(username) {
+        const profiles = JSON.parse(localStorage.getItem('emiratesProfiles') || '{}');
+        return profiles[username] || { firstName: '', lastName: '', email: '' };
+    }
+
+    function saveProfile(username, profile) {
+        const profiles = JSON.parse(localStorage.getItem('emiratesProfiles') || '{}');
+        profiles[username] = profile;
+        localStorage.setItem('emiratesProfiles', JSON.stringify(profiles));
+    }
+
+    function openProfileEdit(e) {
+        if (e) e.stopPropagation();
+        document.getElementById('profileDropdown').classList.remove('open');
+        const profile = getProfile(currentUser);
+        document.getElementById('profileUsername').textContent = currentUser;
+        document.getElementById('profileFirstName').value = profile.firstName || '';
+        document.getElementById('profileLastName').value = profile.lastName || '';
+        document.getElementById('profileEmail').value = profile.email || '';
+        document.getElementById('profileEditModal').classList.add('visible');
+    }
+
+    function closeProfileEdit() {
+        document.getElementById('profileEditModal').classList.remove('visible');
+    }
+
+    function saveProfileEdit() {
+        const firstName = document.getElementById('profileFirstName').value.trim();
+        const lastName  = document.getElementById('profileLastName').value.trim();
+        const email     = document.getElementById('profileEmail').value.trim();
+        saveProfile(currentUser, { firstName, lastName, email });
+        setUserUI(currentUser);
+        closeProfileEdit();
+    }
+
+    // ── DOWNLOAD TRANSCRIPT ──────────────────────────────────────────────────
+
+    function downloadTranscriptJson(timestamp) {
+        const reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
+        const review = reviews.find(r => r.timestamp === timestamp);
+        if (!review || !review.structuredFeedback) {
+            alert('No structured feedback available for this session yet.');
+            return;
+        }
+        const sf = review.structuredFeedback;
+        const payload = {
+            session:  sf.session  || { date: review.date || '', trainer: review.trainer || '' },
+            feedback: sf.feedback || {}
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `feedback-session-${timestamp.replace(/[:.]/g, '-')}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // ── DOWNLOAD FEEDBACK EXCEL ──────────────────────────────────────────────
+
+    async function downloadFeedbackExcel(timestamp) {
+        if (typeof XLSX === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+                s.onload = resolve;
+                s.onerror = () => reject(new Error('Failed to load SheetJS'));
+                document.head.appendChild(s);
+            });
+        }
+
+        const reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
+        const review = reviews.find(r => r.timestamp === timestamp);
+        if (!review) return;
+        const sf = review.structuredFeedback;
+        if (!sf) { alert('No structured feedback available for this session.'); return; }
+
+        const wb = XLSX.utils.book_new();
+
+        function buildSheet(type, traineeArr) {
+            let rows = [];
+            if (type === 'attendance') {
+                rows.push(['Trainee', 'Category', 'Result']);
+                traineeArr.forEach(t => (t.categories || []).forEach(c =>
+                    rows.push([t.traineeName || t.name, c.category, c.result])));
+            } else if (type === 'daily') {
+                rows.push(['Trainee', 'Category', 'Sub-item', 'Result']);
+                traineeArr.forEach(t => (t.observations || []).forEach(o =>
+                    rows.push([t.traineeName || t.name, o.category, o.subItem, o.result])));
+            } else if (type === 'sidenote') {
+                rows.push(['Trainee', 'Assessment Name', 'Result']);
+                traineeArr.forEach(t => (t.assessments || []).forEach(a =>
+                    rows.push([t.traineeName || t.name, a.assessmentName, a.result])));
+            } else if (type === 'uniform') {
+                rows.push(['Trainee', 'Category', 'Observation']);
+                traineeArr.forEach(t => (t.findings || []).forEach(f =>
+                    rows.push([t.traineeName || t.name, f.category, f.observation])));
+            }
+            if (rows.length < 2) return; // header only — skip
+            const sheetNames = { attendance: 'Attendance', daily: 'Daily Observations', sidenote: 'Practical Assessments', uniform: 'Uniform Standards' };
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            // Column widths
+            ws['!cols'] = rows[0].map((_, i) => ({ wch: Math.max(16, ...rows.map(r => String(r[i] || '').length)) }));
+            XLSX.utils.book_append_sheet(wb, ws, sheetNames[type] || type);
+        }
+
+        if (sf.feedback && typeof sf.feedback === 'object' && !Array.isArray(sf.feedback)) {
+            Object.keys(sf.feedback).forEach(type => {
+                if (sf.feedback[type] && sf.feedback[type].length > 0) buildSheet(type, sf.feedback[type]);
+            });
+        } else {
+            const arr = sf.feedback || sf.trainees || [];
+            if (arr.length > 0) {
+                const first = arr[0];
+                const type = first.categories ? 'attendance' : first.observations ? 'daily' : first.assessments ? 'sidenote' : 'uniform';
+                buildSheet(type, arr);
+            }
+        }
+
+        if (!wb.SheetNames.length) { alert('No feedback data to export.'); return; }
+
+        const dateStr = review.date || timestamp.split('T')[0];
+        const trainerStr = (sf.session && sf.session.trainer) ? `_${sf.session.trainer}` : '';
+        XLSX.writeFile(wb, `Emirates_Feedback_${dateStr}${trainerStr}.xlsx`);
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const profile = document.getElementById('topbarProfile');
+        if (profile && !profile.contains(e.target)) {
+            document.getElementById('profileDropdown').classList.remove('open');
+        }
+    });
+
+    // ── VIEW SWITCHING ───────────────────────────────────────────────────────
+
+    // ── NEW SESSION PAGE RESET ───────────────────────────────────────────────
+    // Resets all content below the controls card to the "Select a Training Date"
+    // placeholder state. Called on: (1) New Session nav click, (2) Session Complete
+    // toast fade-out.
+
+    function resetSessionPage() {
+        if (sessionActive) return; // Never reset mid-session
+
+        // Clear participant state so date/trainee area starts clean
+        PARTICIPANTS = [];
+        selectedDate = null;
+        document.getElementById('dateSelect').value = new Date().toISOString().split('T')[0]; // Always reset to today, never leave blank
+        document.getElementById('dateSelect').disabled = false;
+        document.getElementById('btnStart').disabled = false;
+
+        // Restore placeholder, hide everything else below controls
+        document.getElementById('placeholder').style.display = '';
+        document.getElementById('participantsCard').style.display = 'none';
+        document.getElementById('sessionInfoBlock').style.display = 'none';
+        document.getElementById('widgetContainer').innerHTML = '';
+        document.getElementById('sessionBtnRow').classList.remove('visible');
+        document.getElementById('summaryCard').classList.remove('visible');
+        document.getElementById('processingIndicator').classList.remove('visible');
+        document.getElementById('processingIndicator').textContent = '🤖 Fetching session data from ElevenLabs...';
+
+        // Reset topbar
+        document.getElementById('topbarTitle').textContent = 'Ready to Begin';
+        document.getElementById('topbarSub').textContent = 'Select a date, then click Start Voice Session';
+        document.getElementById('modeBadge').style.display = 'none';
+        document.getElementById('statusBar').style.display = 'none';
+        document.getElementById('statusText').textContent = '';
+
+        // Load trainees for today so the page is ready to use immediately
+        loadTraineesForDate();
+    }
+
+    function switchView(view) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+
+        if (view === 'session') {
+            document.querySelector('.nav-item:nth-child(1)').classList.add('active');
+            document.getElementById('sessionView').classList.add('active');
+            document.getElementById('topbarLeft').style.visibility = 'visible';
+            resetSessionPage(); // Reset below-controls area to clean state
+        } else if (view === 'dashboard') {
+            document.querySelector('.nav-item:nth-child(2)').classList.add('active');
+            document.getElementById('dashboardView').classList.add('active');
+            document.getElementById('topbarLeft').style.visibility = 'hidden';
+            loadTrainingRecords();
+        }
+    }
+
+    // ── TRAINEES LOADING ─────────────────────────────────────────────────────
+
+    function loadTraineesForDate() {
+        selectedDate = document.getElementById('dateSelect').value;
+        if (!selectedDate) return;
+
+        // MOCK DATA - Replace with actual API call
+        const mockTrainees = {
+            '2026-02-24': ['Alice Johnson', 'Bob Smith', 'Charlie Brown', 'Diana Prince'],
+            '2026-02-25': ['Eve Adams', 'Frank Castle', 'Grace Lee', 'Henry Ford'],
+            '2026-02-26': ['Ivy Chen', 'Jack Ryan', 'Kelly Green', 'Leo King']
+        };
+
+        if (mockTrainees[selectedDate]) {
+            PARTICIPANTS = mockTrainees[selectedDate];
+        } else {
+            // Generate a deterministic but varied set of trainees based on the date
+            const allNames = [
+                'Ahmed Al-Rashid', 'Sophie Bernard', 'Omar Khalid', 'Priya Nair',
+                'James Whitfield', 'Fatima Al-Zaabi', 'Luca Ferretti', 'Yuki Tanaka',
+                'Tariq Al-Mazrouei', 'Elena Vasquez', 'Samuel Okonkwo', 'Hana Al-Qassimi',
+                'Camille Dupont', 'Rohan Mehta', 'Ingrid Svensson', 'Carlos Mendoza',
+                'Dina Mostafa', 'Kwame Asante', 'Lin Wei', 'Patrick O\'Sullivan'
+            ];
+            // Seed based on date string so same date always gives same names
+            const seed = selectedDate.replace(/-/g, '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+            const count = 3 + (seed % 3); // 3 to 5 trainees
+            const shuffled = [...allNames].sort((a, b) => {
+                const ha = (seed * 1103515245 + a.charCodeAt(0) * 12345) % allNames.length;
+                const hb = (seed * 1103515245 + b.charCodeAt(0) * 12345) % allNames.length;
+                return ha - hb;
+            });
+            PARTICIPANTS = shuffled.slice(0, count);
+        }
+
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('participantsCard').style.display = 'block';
+        renderParticipants();
+    }
+
+    function renderParticipants() {
+        const grid = document.getElementById('participantsGrid');
+        grid.innerHTML = PARTICIPANTS.map(name =>
+            `<div class="participant-chip">${name}</div>`
+        ).join('');
+    }
+
+    // ── PROMPTS ──────────────────────────────────────────────────────────────
+
+    function buildPrompts() {
+        const traineeList = PARTICIPANTS.join(', ');
+
+        return {
+            universal: `You are a voice recording assistant helping an Emirates cabin crew trainer capture all types of daily training feedback in one session. You are efficient, warm, and do not waste the trainer's time.
+
+Today's trainees: ${traineeList}.
+
+You are aware of 4 feedback types:
+- ATTENDANCE: punctuality (on time or late), documents appointment (completed or not)
+- DAILY OBSERVATIONS: behaviour and performance sub-items such as communication, demeanour, hospitality mindset, teamwork, self-organisation, knowledge, wellbeing, appearance — each rated Satisfactory or Unsatisfactory
+- PRACTICAL ASSESSMENTS: named drills or checks, each rated Pass or Fail
+- UNIFORM STANDARDS: clothing, grooming, or accessory issues — category and specific observation
+
+Use this awareness only to:
+1. Confirm feedback using the correct terms (e.g. "Got it — Unsatisfactory on Hospitality mindset for Ahmed")
+2. Gently prompt if the trainer seems done with a trainee but hasn't covered an area they started to mention
+
+Do NOT work through sub-items like a checklist. Do NOT ask about specific categories unless the trainer brings them up.
+Accept feedback in any order, for any trainee, in any format.
+
+Once the trainer says they are done or there is nothing more to add,
+say "All feedback captured. Session complete." and end the session.
+
+Start by greeting briefly (one sentence) then ask: "What would you like to record today?"`,
+        };
+    }
+
+    function buildFirstMessages() {
+        return {
+            universal: `Hello! Ready to capture today's feedback. What would you like to record?`
+        };
+    }
+
+    // ── AUTOMATIC CALL-END DETECTION ────────────────────────────────────────
+    // The ElevenLabs widget's custom events (call:ended) don't always fire
+    // or carry the conversation_id. These strategies detect call completion
+    // through multiple channels so no manual "End Session" click is needed.
+
+    async function handleCallEnd(conversationIdHint, source) {
+        if (sessionEndHandled || !sessionActive || sessionCancelled) return;
+        sessionEndHandled = true;
+        console.log(`[AutoDetect] Call end handled via: ${source}`);
+
+        if (conversationIdHint) currentConversationId = conversationIdHint;
+
+        // Try widget property as extra fallback
+        if (!currentConversationId && currentWidget) {
+            const wid = currentWidget.conversationId ||
+                        currentWidget.getAttribute('conversation-id');
+            if (wid) currentConversationId = wid;
+        }
+
+        cleanupCallEndDetection();
+
+        document.getElementById('statusDot').className = 'status-dot-bar ended';
+        document.getElementById('statusText').textContent = 'Session ended — fetching analysis results from ElevenLabs...';
+        document.getElementById('sessionBtnRow').classList.remove('visible');
+
+        await processTranscriptAndSave();
+    }
+
+    function setupCallEndDetection(widget) {
+        const cleanups = [];
+        const sessionStartTime = Date.now();
+
+        // Helper: recursively search an object for a conversation ID
+        function deepFindConvId(obj, depth) {
+            if (!obj || typeof obj !== 'object' || depth > 4) return null;
+            if (obj.conversationId) return obj.conversationId;
+            if (obj.conversation_id) return obj.conversation_id;
+            for (const key of Object.keys(obj)) {
+                const found = deepFindConvId(obj[key], depth + 1);
+                if (found) return found;
+            }
+            return null;
+        }
+
+        // Helper: recursively search an object for end-of-call signals
+        function deepFindEndSignal(obj, depth) {
+            if (!obj || typeof obj !== 'object' || depth > 4) return null;
+            // Check string values for end keywords
+            for (const [key, val] of Object.entries(obj)) {
+                if (typeof val === 'string') {
+                    const lv = val.toLowerCase();
+                    if (lv.includes('ended') || lv.includes('disconnected') ||
+                        lv === 'done' || lv === 'finished' || lv === 'completed') {
+                        return `${key}:${val}`;
+                    }
+                }
+                if (typeof val === 'object') {
+                    const found = deepFindEndSignal(val, depth + 1);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        // — Strategy 1: Listen for postMessage from the widget's iframe —
+        // The ElevenLabs widget embeds an iframe that communicates via
+        // window.postMessage. We deep-scan every message for conversation
+        // IDs and end-of-call signals regardless of message shape.
+        function onMessage(event) {
+            if (sessionEndHandled || !sessionActive) return;
+            try {
+                const raw = event.data;
+                if (!raw) return;
+                const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                if (!data || typeof data !== 'object') return;
+
+                console.log('[AutoDetect] postMessage:', JSON.stringify(data).slice(0, 500));
+
+                // Deep-scan for conversation ID
+                const convId = deepFindConvId(data, 0);
+                if (convId && !currentConversationId) {
+                    currentConversationId = convId;
+                    console.log('[AutoDetect] Conversation ID from postMessage:', convId);
+                }
+
+                // Detect call-started signals via postMessage too
+                const type = String(data.type || data.event || data.action || '').toLowerCase();
+                if (type.includes('started') || type.includes('connected') || type.includes('in-progress')) {
+                    callConnected = true;
+                }
+
+                // Deep-scan for end-of-call signals (only after call has connected)
+                if (callConnected) {
+                    const endSignal = deepFindEndSignal(data, 0);
+                    if (endSignal) {
+                        console.log('[AutoDetect] End signal from postMessage:', endSignal);
+                        handleCallEnd(convId || currentConversationId, 'postMessage:' + endSignal);
+                    }
+                }
+            } catch(e) { /* non-JSON message, ignore */ }
+        }
+        window.addEventListener('message', onMessage);
+        cleanups.push(() => window.removeEventListener('message', onMessage));
+
+        // — Strategy 2: Poll widget element for conversation ID + observe attribute changes —
+        const widgetPoll = setInterval(() => {
+            if (!currentWidget || sessionEndHandled) return;
+            const id = currentWidget.conversationId ||
+                       currentWidget.getAttribute('conversation-id') ||
+                       currentWidget.getAttribute('data-conversation-id');
+            if (id && !currentConversationId) {
+                currentConversationId = id;
+                console.log('[AutoDetect] Conversation ID from widget poll:', id);
+            }
+        }, 2000);
+        cleanups.push(() => clearInterval(widgetPoll));
+
+        // Also watch widget attribute changes
+        const attrObserver = new MutationObserver(() => {
+            if (sessionEndHandled || !currentWidget) return;
+            const id = currentWidget.getAttribute('conversation-id') ||
+                       currentWidget.getAttribute('data-conversation-id');
+            if (id && !currentConversationId) {
+                currentConversationId = id;
+                console.log('[AutoDetect] Conversation ID from attr mutation:', id);
+            }
+        });
+        attrObserver.observe(widget, { attributes: true });
+        cleanups.push(() => attrObserver.disconnect());
+
+        // — Strategy 3: Poll ElevenLabs conversations API (most reliable) —
+        // ElevenLabs API status values: "in-progress" → "processing" → "done" | "failed"
+        //
+        // IMPORTANT: We must NOT treat a conversation as "ended" until we have
+        // first observed that a call is active. Otherwise, a previous conversation
+        // (already "done") would immediately trigger end-of-session before the
+        // user even starts speaking.
+        //
+        // Phase 1 — wait for a call to be active (callConnected flag from widget
+        //           event, OR an "in-progress" conversation appearing in the API).
+        // Phase 2 — once active, detect when the call ends (status leaves active).
+        let callSeenActive = false; // mirrors callConnected but also set by API observation
+
+        const apiPoll = setInterval(async () => {
+            if (sessionEndHandled || !sessionActive || sessionCancelled) {
+                clearInterval(apiPoll);
+                return;
+            }
+            try {
+                const keys = getApiKeys();
+                if (!keys.elevenlabs) return;
+
+                const resp = await fetch(
+                    `https://api.elevenlabs.io/v1/convai/conversations?agent_id=${AGENT_ID}&page_size=1`,
+                    { headers: { 'xi-api-key': keys.elevenlabs } }
+                );
+                if (!resp.ok) return;
+
+                const data = await resp.json();
+                const list = data.conversations || data.history || [];
+                if (list.length === 0) return;
+
+                const conv = list[0];
+                const convId = conv.conversation_id || conv.id;
+                const status = String(conv.status || '').toLowerCase();
+
+                // Get conversation creation time (ElevenLabs uses start_time_unix_secs)
+                let convCreatedMs = 0;
+                if (conv.start_time_unix_secs) {
+                    convCreatedMs = conv.start_time_unix_secs * 1000;
+                } else if (conv.start_time || conv.created_at) {
+                    convCreatedMs = new Date(conv.start_time || conv.created_at).getTime();
+                }
+
+                // Only consider conversations that started after (or near) our session
+                if (convCreatedMs > 0 && convCreatedMs < sessionStartTime - 120000) return;
+
+                // Capture conversation ID
+                if (convId && !currentConversationId) {
+                    currentConversationId = convId;
+                    console.log('[AutoDetect] Conversation ID from API:', convId, 'status:', status);
+                }
+
+                const isActive = status === 'in-progress' || status === 'started' || status === 'in_progress';
+
+                // Phase 1: detect that a call is active
+                if (isActive) {
+                    if (!callSeenActive) {
+                        callSeenActive = true;
+                        callConnected = true;
+                        console.log('[AutoDetect] Call is active (seen via API)');
+                    }
+                    return; // call still running, nothing to do
+                }
+
+                // Phase 2: only check for ended AFTER we know a call was active
+                if (!callSeenActive && !callConnected) return; // still waiting for call to start
+
+                const hasEnded = convId && !isActive && status !== '';
+                const hasDuration = conv.call_duration_secs && conv.call_duration_secs > 0;
+
+                if (hasEnded || hasDuration) {
+                    console.log('[AutoDetect] Call ended per API. Status:', status,
+                                'Duration:', conv.call_duration_secs);
+                    handleCallEnd(convId, 'api-poll:' + status);
+                }
+            } catch(e) {
+                console.warn('[AutoDetect] API poll error:', e.message);
+            }
+        }, 4000); // Check every 4 seconds
+        cleanups.push(() => clearInterval(apiPoll));
+
+        _callEndDetectionCleanup = () => {
+            cleanups.forEach(fn => fn());
+            _callEndDetectionCleanup = null;
+        };
+    }
+
+    function cleanupCallEndDetection() {
+        if (_callEndDetectionCleanup) _callEndDetectionCleanup();
+    }
+
+    // ── SESSION START ────────────────────────────────────────────────────────
+
+    function startSession() {
+        if (sessionActive) return;
+        if (PARTICIPANTS.length === 0) {
+            alert('Please select a training date first.');
+            return;
+        }
+
+        const keys = getApiKeys();
+        if (!keys.elevenlabs) {
+            alert('Please configure your ElevenLabs API key first (click banner at top).');
+            openConfig();
+            return;
+        }
+
+        if (!keys.snaplogicUrl) {
+            alert('Please configure the SnapLogic API URL first (click banner at top).');
+            openConfig();
+            return;
+        }
+
+        sessionActive = true;
+        currentMode = 'auto';
+        currentConversationId = null;
+        sessionEndHandled = false;
+        callConnected = false;
+
+        const PROMPTS = buildPrompts();
+        const FIRST_MESSAGES = buildFirstMessages();
+
+        sessionCancelled = false;
+
+        // UI updates
+        document.getElementById('btnStart').disabled = true;
+        document.getElementById('dateSelect').disabled = true;
+        document.getElementById('placeholder').style.display = 'none';
+        document.getElementById('sessionInfoBlock').style.display = 'block';
+        document.getElementById('summaryCard').classList.remove('visible');
+
+        const dateObj = new Date(selectedDate + 'T12:00:00');
+        const formattedDate = dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+        document.getElementById('sessionDateLabel').textContent = formattedDate;
+        document.getElementById('sessionModeLabel').textContent = MODE_LABELS[currentMode];
+        document.getElementById('sessionCountLabel').textContent = PARTICIPANTS.length;
+
+        document.getElementById('topbarTitle').textContent = 'Voice Session — In Progress';
+        document.getElementById('topbarSub').textContent = `${PARTICIPANTS.length} trainees · ${formattedDate}`;
+
+        const badge = document.getElementById('modeBadge');
+        badge.textContent = MODE_LABELS[currentMode];
+        badge.className = `mode-badge ${currentMode}`;
+        badge.style.display = 'inline-block';
+
+        renderParticipants();
+
+        // Build ElevenLabs widget
+        const container = document.getElementById('widgetContainer');
+        const widget = document.createElement('elevenlabs-convai');
+        widget.setAttribute('agent-id', AGENT_ID);
+        widget.setAttribute('override-prompt', PROMPTS['universal']);
+        widget.setAttribute('override-first-message', FIRST_MESSAGES['universal']);
+        container.appendChild(widget);
+        currentWidget = widget;
+
+        document.getElementById('sessionBtnRow').classList.add('visible');
+
+        // CRITICAL: Hook into ElevenLabs events
+        // Register both colon and underscore variants — ElevenLabs widget versions differ
+        function onCallStarted(event) {
+            console.log('Call started event:', event);
+            callConnected = true;
+            document.getElementById('statusBar').style.display = 'flex';
+            document.getElementById('statusDot').className = 'status-dot-bar connected';
+            document.getElementById('statusText').textContent = 'Connected — speak naturally, the agent will guide you through each trainee.';
+
+            // Try multiple known paths for conversation ID
+            const id = (event.detail && (
+                event.detail.conversationId ||
+                event.detail.conversation_id ||
+                (event.detail.config && event.detail.config.conversationId)
+            )) || null;
+            if (id) {
+                currentConversationId = id;
+                console.log('Captured conversation ID from call:started event:', currentConversationId);
+            }
+            // Also check widget property directly
+            if (!currentConversationId && currentWidget) {
+                const widgetId = currentWidget.conversationId || currentWidget.getAttribute('conversation-id');
+                if (widgetId) {
+                    currentConversationId = widgetId;
+                    console.log('Captured conversation ID from widget property:', currentConversationId);
+                }
+            }
+        }
+
+        async function onCallEnded(event) {
+            console.log('Call ended event:', event);
+            const id = (event.detail && (
+                event.detail.conversationId ||
+                event.detail.conversation_id ||
+                (event.detail.config && event.detail.config.conversationId)
+            )) || null;
+            await handleCallEnd(id, 'widget-event');
+        }
+
+        widget.addEventListener('elevenlabs-convai:call:started', onCallStarted);
+        widget.addEventListener('elevenlabs-convai:call_started', onCallStarted);
+        widget.addEventListener('elevenlabs-convai:call:ended', onCallEnded);
+        widget.addEventListener('elevenlabs-convai:call_ended', onCallEnded);
+
+        // Also listen for conversation ID update events
+        function onConvId(event) {
+            const id = event.detail && (event.detail.conversationId || event.detail.conversation_id);
+            if (id) {
+                currentConversationId = id;
+                console.log('Conversation ID updated via event:', currentConversationId);
+            }
+        }
+        widget.addEventListener('elevenlabs-convai:conversation:id', onConvId);
+        widget.addEventListener('elevenlabs-convai:conversation_id', onConvId);
+
+        // Set up automatic call-end detection (postMessage, API polling)
+        // so the session completes without needing the manual End button.
+        setupCallEndDetection(widget);
+    }
+
+    // Fetch the latest conversation ID for this agent from the API (fallback when widget doesn't provide it)
+    async function getLatestConversationId() {
+        const keys = getApiKeys();
+        try {
+            const response = await fetch(
+                `https://api.elevenlabs.io/v1/convai/conversations?agent_id=${AGENT_ID}&page_size=5`,
+                { headers: { 'xi-api-key': keys.elevenlabs } }
+            );
+            if (!response.ok) {
+                console.warn('Failed to list conversations:', response.status);
+                return null;
+            }
+            const data = await response.json();
+            console.log('Conversations list:', data);
+            // API returns { conversations: [...] } or { history: [...] } depending on version
+            const list = data.conversations || data.history || [];
+            if (list.length > 0) {
+                const conv = list[0];
+                const id = conv.conversation_id || conv.id;
+                console.log('Latest conversation ID from API:', id);
+                return id;
+            }
+        } catch (e) {
+            console.error('Failed to get latest conversation ID:', e);
+        }
+        return null;
+    }
+
+    async function callSnapLogicOrchestrator(transcript, sessionContext) {
+        const keys = getApiKeys();
+        const snapUrl = keys.snaplogicUrl;
+        const snapToken = keys.snaplogicToken;
+
+        if (!snapUrl) throw new Error('SnapLogic URL not configured.');
+
+        const payload = {
+            transcript: transcript,
+            date: sessionContext.date,
+            mode: sessionContext.mode,
+            trainees: sessionContext.trainees,
+            trainer: sessionContext.trainer
+        };
+
+        // ── OPTIONS preflight probe ──────────────────────────────────────────
+        console.group('[SnapLogic] OPTIONS preflight probe');
+        console.log('URL:', snapUrl);
+        try {
+            const optionsRes = await fetch(snapUrl, {
+                method: 'OPTIONS',
+                headers: {
+                    'Origin': window.location.href,
+                    'Access-Control-Request-Method': 'POST',
+                    'Access-Control-Request-Headers': 'authorization, content-type'
+                }
+            });
+            console.log('Status:', optionsRes.status, optionsRes.statusText);
+            console.log('Response headers:');
+            optionsRes.headers.forEach((value, key) => console.log(`  ${key}: ${value}`));
+        } catch (optErr) {
+            console.error('OPTIONS fetch threw (CORS blocked at browser level):', optErr.message);
+        }
+        console.groupEnd();
+
+        // ── POST request ─────────────────────────────────────────────────────
+        console.group('[SnapLogic] POST request');
+        console.log('URL:', snapUrl);
+        console.log('Payload:', JSON.stringify(payload, null, 2));
+        let response;
+        try {
+            response = await fetch(snapUrl, {
+                method: 'POST',
+                headers: {
+                    ...(snapToken ? { 'Authorization': `Bearer ${snapToken}` } : {}),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+        } catch (fetchErr) {
+            console.error('POST fetch threw (CORS blocked at browser level):', fetchErr.message);
+            console.groupEnd();
+            throw fetchErr;
+        }
+        console.log('Status:', response.status, response.statusText);
+        console.log('Response headers:');
+        response.headers.forEach((value, key) => console.log(`  ${key}: ${value}`));
+        const rawText = await response.text();
+        console.log('Response body:', rawText);
+        console.groupEnd();
+
+        if (!response.ok) throw new Error(`SnapLogic API error: ${response.status}`);
+        const result = JSON.parse(rawText);
+        return result;
+    }
+
+    async function processTranscriptAndSave() {
+        if (sessionCancelled) return;
+
+        document.getElementById('processingIndicator').classList.add('visible');
+        document.getElementById('processingIndicator').textContent = '🤖 Fetching session data from ElevenLabs...';
+
+        let transcriptSummary = null;
+        let rawTranscript = [];
+        let finalConversationId = currentConversationId;
+
+        try {
+            if (!finalConversationId) {
+                console.log('No conversation ID from widget — waiting 2s then querying API...');
+                document.getElementById('processingIndicator').textContent = '🤖 Fetching conversation ID...';
+                await sleep(2000);
+                finalConversationId = await getLatestConversationId();
+                currentConversationId = finalConversationId;
+            }
+
+            if (finalConversationId) {
+                console.log('Fetching conversation data for:', finalConversationId);
+                document.getElementById('processingIndicator').textContent = '🤖 Waiting for ElevenLabs analysis...';
+                const keys = getApiKeys();
+
+                // Retry loop: ElevenLabs transitions from "processing" → "done".
+                // Wait for analysis to be ready (up to ~30s).
+                const maxRetries = 8;
+                for (let attempt = 0; attempt < maxRetries; attempt++) {
+                    const response = await fetch(
+                        `https://api.elevenlabs.io/v1/convai/conversations/${finalConversationId}`,
+                        { headers: { 'xi-api-key': keys.elevenlabs } }
+                    );
+                    if (!response.ok) {
+                        console.warn('Failed to fetch conversation data:', response.status);
+                        break;
+                    }
+                    const data = await response.json();
+                    const status = String(data.status || '').toLowerCase();
+                    console.log(`Conversation attempt ${attempt + 1}: status=${status}`);
+
+                    transcriptSummary = (data.analysis && data.analysis.transcript_summary) || null;
+                    rawTranscript = data.transcript || [];
+
+                    if (transcriptSummary || status === 'done' || status === 'failed') {
+                        console.log('Transcript summary:', transcriptSummary);
+                        break;
+                    }
+
+                    // Still processing — wait and retry
+                    document.getElementById('processingIndicator').textContent =
+                        `🤖 ElevenLabs is analysing the conversation... (${attempt + 1}/${maxRetries})`;
+                    await sleep(4000);
+                }
+            } else {
+                console.warn('No conversation ID available — saving without summary');
+            }
+        } catch (error) {
+            console.error('Error fetching conversation data:', error);
+        } finally {
+            document.getElementById('processingIndicator').classList.remove('visible');
+            document.getElementById('processingIndicator').textContent = '🤖 Fetching session data from ElevenLabs...';
+        }
+
+        // Capture session context before onSessionComplete resets state
+        const snapContext = {
+            transcript: rawTranscript,
+            date: selectedDate,
+            mode: currentMode,
+            trainees: [...PARTICIPANTS],
+            trainer: currentUser || 'trainer'
+        };
+
+        // Save immediately — don't wait for SnapLogic
+        onSessionComplete({ transcriptSummary, conversationId: finalConversationId });
+
+        // Call SnapLogic async in the background and patch the saved review when done
+        if (snapContext.transcript.length > 0) {
+            callSnapLogicAsync(snapContext, lastSavedTimestamp);
+        }
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // ── SESSION COMPLETE ─────────────────────────────────────────────────────
+
+    function onSessionComplete({ transcriptSummary, conversationId }) {
+        document.getElementById('topbarTitle').textContent = 'Session Complete';
+        document.getElementById('topbarSub').textContent = `Session saved · ${PARTICIPANTS.length} trainees`;
+
+        const ts = new Date().toISOString();
+        lastSavedTimestamp = ts;
+
+        document.getElementById('sessionBtnRow').classList.remove('visible');
+
+        saveReview({
+            date: selectedDate,
+            mode: currentMode,
+            trainees: PARTICIPANTS,
+            trainer: currentUser || 'trainer',
+            timestamp: ts,
+            conversationId: conversationId || null,
+            transcriptSummary: transcriptSummary || null,
+            structuredFeedback: null  // patched async by callSnapLogicAsync
+        });
+
+        document.getElementById('statusText').textContent = 'Session complete — feedback saved.';
+
+        // Show Session Complete toast (auto-dismisses after 4s, clickable to navigate to dashboard)
+        const toastComplete = document.getElementById('toastComplete');
+        toastComplete.classList.add('visible');
+        setTimeout(() => {
+            toastComplete.classList.remove('visible');
+            // After the toast fades, reset the New Session page to clean state
+            resetSessionPage();
+        }, 4000);
+
+        // Re-enable controls so a new session can be started
+        sessionActive = false;
+        currentConversationId = null;
+        currentWidget = null;
+        document.getElementById('widgetContainer').innerHTML = '';
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('dateSelect').disabled = false;
+    }
+
+    // ── CANCEL SESSION ───────────────────────────────────────────────────────
+
+    function cancelSession() {
+        if (!sessionActive) return;
+
+        sessionActive = false;
+        sessionCancelled = true;
+        sessionEndHandled = true;
+        currentConversationId = null;
+        cleanupCallEndDetection();
+
+        // Silently remove the widget — no event processing, no ElevenLabs calls
+        if (currentWidget) {
+            currentWidget.remove();
+            currentWidget = null;
+        }
+        document.getElementById('widgetContainer').innerHTML = '';
+
+        // Hide session UI
+        document.getElementById('sessionBtnRow').classList.remove('visible');
+        document.getElementById('sessionInfoBlock').style.display = 'none';
+        document.getElementById('statusBar').style.display = 'none';
+        document.getElementById('summaryCard').classList.remove('visible');
+        document.getElementById('processingIndicator').classList.remove('visible');
+        document.getElementById('processingIndicator').textContent = '🤖 Fetching session data from ElevenLabs...';
+
+        // Show the choose-day state
+        document.getElementById('placeholder').style.display = '';
+        document.getElementById('btnStart').disabled = false;
+        document.getElementById('dateSelect').disabled = false;
+
+        // Reset topbar
+        document.getElementById('topbarTitle').textContent = 'Ready to Begin';
+        document.getElementById('topbarSub').textContent = 'Select a date, then click Start Voice Session';
+        document.getElementById('modeBadge').style.display = 'none';
+
+        // Show Session Cancelled toast
+        const toast = document.getElementById('toastCancelled');
+        toast.classList.add('visible');
+        setTimeout(() => toast.classList.remove('visible'), 3000);
+    }
+
+    // ── LOCALSTORAGE / DASHBOARD ────────────────────────────────────────────
+
+    function saveReview(review) {
+        const reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
+        reviews.push(review);
+        localStorage.setItem('emiratesReviews', JSON.stringify(reviews));
+    }
+
+    function patchReview(timestamp, updates) {
+        const reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
+        const idx = reviews.findIndex(r => r.timestamp === timestamp);
+        if (idx !== -1) {
+            Object.assign(reviews[idx], updates);
+            localStorage.setItem('emiratesReviews', JSON.stringify(reviews));
+            console.log('[SnapLogic] Review patched:', timestamp, updates);
+        }
+    }
+
+    async function callSnapLogicAsync(context, savedTimestamp) {
+        const keys = getApiKeys();
+        if (!keys.snaplogicUrl) {
+            console.log('[SnapLogic] No URL configured — skipping structured feedback.');
+            return;
+        }
+        console.log('[SnapLogic] Starting async structured feedback call...');
+        try {
+            const result = await callSnapLogicOrchestrator(context.transcript, context);
+            console.log('[SnapLogic] Structured feedback received:', result);
+            patchReview(savedTimestamp, { structuredFeedback: result });
+            callSharingPipeline(savedTimestamp);
+            // If the user is on the dashboard, refresh it silently
+            if (document.getElementById('dashboardView').classList.contains('active')) {
+                loadTrainingRecords();
+            }
+        } catch (err) {
+            console.error('[SnapLogic] Async call failed:', err);
+        }
+    }
+
+    async function callSharingPipeline(timestamp) {
+        const keys = getApiKeys();
+        if (!keys.sharingUrl) {
+            console.log('[Sharing] No sharing URL configured — skipping delivery.');
+            return;
+        }
+        const reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
+        const review = reviews.find(r => r.timestamp === timestamp);
+        if (!review || !review.structuredFeedback) {
+            console.log('[Sharing] No structured feedback available — skipping sharing.');
+            return;
+        }
+        console.group('[Sharing] Pipeline call — ' + timestamp);
+        console.log('URL:', keys.sharingUrl);
+
+        // Mark all channels as pending before the call
+        patchReview(timestamp, { sharingStatus: { email: 'pending', teams: 'pending', sharepoint: 'pending' } });
+        if (document.getElementById('dashboardView').classList.contains('active')) loadTrainingRecords();
+
+        try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (keys.snaplogicToken) headers['Authorization'] = 'Bearer ' + keys.snaplogicToken;
+
+            const sf = review.structuredFeedback;
+            const trainerProfile = getProfile(review.trainer || '');
+            const payload = {
+                session: {
+                    date:    (sf.session && sf.session.date) || review.date || '',
+                    trainer: trainerProfile.email || review.trainer || ''
+                },
+                feedback: sf.feedback || {}
+            };
+
+            console.log('Request payload:', JSON.parse(JSON.stringify(payload)));
+
+            const response = await fetch(keys.sharingUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+
+            console.log('HTTP status:', response.status, response.statusText);
+            console.log('Response headers:');
+            response.headers.forEach((value, key) => console.log(' ', key + ':', value));
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const result = await response.json();
+            console.log('Response body:', result);
+            const status = result.status || {};
+            patchReview(timestamp, { sharingStatus: status });
+            console.log('Sharing status saved:', status);
+        } catch (err) {
+            console.error('Failed:', err.message);
+            patchReview(timestamp, { sharingStatus: {
+                email: 'failed', teams: 'failed', sharepoint: 'failed',
+                error: err.message
+            }});
+        }
+
+        console.groupEnd();
+
+        if (document.getElementById('dashboardView').classList.contains('active')) loadTrainingRecords();
+    }
+
+    async function retryTranscriptAnalysis(timestamp) {
+        const keys = getApiKeys();
+        if (!keys.snaplogicUrl) {
+            alert('SnapLogic URL not configured. Please click the banner at the top.');
+            openConfig();
+            return;
+        }
+        if (!keys.elevenlabs) {
+            alert('ElevenLabs API key not configured. Please click the banner at the top.');
+            openConfig();
+            return;
+        }
+
+        const reviews = getReviews();
+        const review = reviews.find(r => r.timestamp === timestamp);
+        if (!review || !review.conversationId) return;
+
+        const cardId = 'review-' + timestamp.replace(/[:.]/g, '-');
+        const btn = document.getElementById('retry-' + cardId);
+        if (btn) { btn.textContent = '⏳ Analysing...'; btn.disabled = true; }
+
+        try {
+            const response = await fetch(
+                `https://api.elevenlabs.io/v1/convai/conversations/${review.conversationId}`,
+                { headers: { 'xi-api-key': keys.elevenlabs } }
+            );
+            if (!response.ok) throw new Error(`ElevenLabs error: ${response.status}`);
+            const data = await response.json();
+            const transcript = data.transcript || [];
+            if (transcript.length === 0) throw new Error('No transcript available for this session.');
+
+            const transcriptSummary = (data.analysis && data.analysis.transcript_summary) || null;
+
+            const result = await callSnapLogicOrchestrator(transcript, {
+                date: review.date,
+                mode: 'auto',
+                trainees: review.trainees,
+                trainer: review.trainer || currentUser || 'trainer'
+            });
+
+            const patches = { structuredFeedback: result };
+            if (transcriptSummary) patches.transcriptSummary = transcriptSummary;
+            patchReview(timestamp, patches);
+            callSharingPipeline(timestamp);
+            loadTrainingRecords();
+        } catch (err) {
+            console.error('[Manual Analysis] Error:', err);
+            alert('Analysis failed: ' + err.message);
+            if (btn) { btn.textContent = '🔄 Retry Analysis'; btn.disabled = false; }
+        }
+    }
+
+    function deleteReview(timestamp) {
+        const reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
+        const updated = reviews.filter(r => r.timestamp !== timestamp);
+        localStorage.setItem('emiratesReviews', JSON.stringify(updated));
+        document.getElementById('dashboardDateFilter').value = '';
+        document.getElementById('dateFilterWrapper').classList.remove('has-value');
+        document.getElementById('dashboardModeFilter').value = '';
+        loadTrainingRecords(null);
+    }
+
+    function getReviews(filterDate = null, filterMode = null) {
+        let reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
+        if (filterDate) reviews = reviews.filter(r => r.date === filterDate);
+        if (filterMode) reviews = reviews.filter(r => {
+            const fb = r.structuredFeedback?.feedback;
+            return fb && !Array.isArray(fb) && fb[filterMode]?.length > 0;
+        });
+        return reviews.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    }
+
+    function loadTrainingRecords(filterDate = null, filterMode = null) {
+        const reviews = getReviews(filterDate, filterMode);
+        const container = document.getElementById('dashboardReviews');
+
+        if (reviews.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📋</div>
+                    <h3>No Reviews Yet</h3>
+                    <p>Complete a feedback session to see reviews here.</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = reviews.map((review, index) => {
+            const cardId = 'review-' + review.timestamp.replace(/[:.]/g, '-');
+            const dateObj = new Date(review.date + 'T12:00:00');
+            const formattedDate = dateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+            const recordedObj = new Date(review.timestamp);
+            const formattedRecorded = recordedObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+                + ' · ' + recordedObj.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+            const summaryHtml = review.transcriptSummary
+                ? `<div class="session-summary-box" style="margin-top:12px;">
+                    <h5>Session Summary</h5>
+                    <p>${review.transcriptSummary}</p>
+                   </div>`
+                : `<p style="color:#94a3b8;font-size:13px;font-style:italic;margin-top:10px;">No summary available for this session.</p>`;
+
+            const structuredHtml = renderFeedbackTables(review.structuredFeedback, review.timestamp, review.trainees || [], !!review.conversationId);
+
+            const retryBtn = review.conversationId
+                ? `<button class="btn-action btn-retry-analysis" id="retry-${cardId}" onclick="retryTranscriptAnalysis('${review.timestamp}')" style="font-size:11px;padding:3px 9px;margin-left:8px;">🔄 Retry Analysis</button>`
+                : '';
+
+            const excelBtn = `<button class="btn-action" onclick="downloadFeedbackExcel('${review.timestamp}')" style="margin-left:auto;">📊 Excel</button>`;
+            const actionsHtml = review.conversationId
+                ? `<div class="review-actions">
+                    <button class="btn-action" onclick="fetchAndShowTranscript('${review.conversationId}')">📄 Show Transcript</button>
+                    <button class="btn-action" onclick="downloadTranscriptJson('${review.timestamp}')">⬇️ Download Feedback Session as JSON</button>
+                    ${excelBtn}
+                   </div>`
+                : `<div class="review-actions">
+                    <span style="font-size:12px;color:#94a3b8;font-style:italic;">No conversation ID captured — transcript unavailable.</span>
+                    ${excelBtn}
+                   </div>`;
+
+            const sharingStatusHtml = (() => {
+                const sharingKeys = getApiKeys();
+                if (!sharingKeys.sharingUrl) return '';
+                const CHANNELS = [
+                    { key: 'email',      label: '📧 Email' },
+                    { key: 'teams',      label: '💬 Teams' },
+                    { key: 'sharepoint', label: '📁 SharePoint' }
+                ];
+                const ss = review.sharingStatus;
+                if (!ss || Object.keys(ss).length === 0) {
+                    return `<div class="sharing-status-row"><span class="sharing-label">Sharing:</span><span class="sharing-badge not-shared">Not yet sent</span></div>`;
+                }
+                const badges = CHANNELS.map(ch => {
+                    const state = ss[ch.key];
+                    const icon = state === 'sent' ? '✓' : state === 'failed' ? '✗' : state === 'pending' ? '⟳' : '—';
+                    const cls  = state === 'sent' ? 'sent' : state === 'failed' ? 'failed' : state === 'pending' ? 'pending' : 'not-shared';
+                    return `<span class="sharing-badge ${cls}">${ch.label} ${icon}</span>`;
+                }).join('');
+                return `<div class="sharing-status-row"><span class="sharing-label">Sharing:</span>${badges}</div>`;
+            })();
+
+            return `
+                <div class="review-card" id="${cardId}">
+                    <div class="review-header">
+                        <div class="review-dates">
+                            <div style="display:flex;align-items:center;gap:0;">
+                                <div class="review-date">📅 Training: ${formattedDate}</div>
+                                ${retryBtn}
+                            </div>
+                            <div class="review-recorded">🕓 Feedback recorded: ${formattedRecorded}</div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            ${(() => {
+                                const sf = review.structuredFeedback;
+                                if (review.mode === 'auto' && sf && sf.feedback && typeof sf.feedback === 'object' && !Array.isArray(sf.feedback)) {
+                                    const modes = Object.keys(sf.feedback).filter(k => sf.feedback[k] && sf.feedback[k].length > 0);
+                                    return modes.map(m => `<div class="review-type ${m}">${MODE_LABELS[m] || m}</div>`).join('');
+                                }
+                                return `<div class="review-type ${review.mode}">${MODE_LABELS[review.mode] || review.mode}</div>`;
+                            })()}
+                            <button onclick="deleteReview('${review.timestamp}')" title="Delete this review" style="background:none;border:1px solid #fca5a5;border-radius:6px;padding:4px 8px;cursor:pointer;color:#dc2626;font-size:12px;line-height:1;">🗑 Delete</button>
+                        </div>
+                    </div>
+                    <div class="review-trainees">
+                        <strong>Trainees:</strong> ${review.trainees.join(', ')}
+                    </div>
+                    ${structuredHtml}
+                    ${summaryHtml}
+                    ${sharingStatusHtml}
+                    ${actionsHtml}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function filterByDate() {
+        const filterDate = document.getElementById('dashboardDateFilter').value;
+        const filterMode = document.getElementById('dashboardModeFilter').value;
+        if (filterDate) {
+            loadTrainingRecords(filterDate, filterMode || null);
+        } else {
+            alert('Please select a date to filter.');
+        }
+    }
+
+    function toggleDateWrapper(input) {
+        input.closest('.date-wrapper').classList.toggle('has-value', !!input.value);
+    }
+
+    function showAllDates() {
+        const input = document.getElementById('dashboardDateFilter');
+        input.value = '';
+        document.getElementById('dateFilterWrapper').classList.remove('has-value');
+        const filterMode = document.getElementById('dashboardModeFilter').value;
+        loadTrainingRecords(null, filterMode || null);
+    }
+
+    function filterByType() {
+        const filterDate = document.getElementById('dashboardDateFilter').value;
+        const filterMode = document.getElementById('dashboardModeFilter').value;
+        if (filterMode) {
+            loadTrainingRecords(filterDate || null, filterMode);
+        } else {
+            alert('Please select a type to filter.');
+        }
+    }
+
+    function showAllTypes() {
+        document.getElementById('dashboardModeFilter').value = '';
+        const filterDate = document.getElementById('dashboardDateFilter').value;
+        loadTrainingRecords(filterDate || null, null);
+    }
+
+    function filterTrainingRecords() {
+        const filterDate = document.getElementById('dashboardDateFilter').value;
+        const filterMode = document.getElementById('dashboardModeFilter').value;
+        if (filterDate || filterMode) {
+            loadTrainingRecords(filterDate || null, filterMode || null);
+        } else {
+            alert('Please select a date or type to filter.');
+        }
+    }
+
+    function goToTrainingRecordsItem(timestamp) {
+        switchView('dashboard');
+        if (timestamp) {
+            const safeId = 'review-' + timestamp.replace(/[:.]/g, '-');
+            requestAnimationFrame(() => {
+                const el = document.getElementById(safeId);
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    el.style.outline = '2px solid var(--red)';
+                    setTimeout(() => el.style.outline = '', 2000);
+                }
+            });
+        }
+    }
+
+    // ── FEEDBACK TABLE RENDERING ──────────────────────────────────────────────
+
+    const TAXONOMY = {
+        daily: {
+            'ART OF SELLING':    ['Art of selling (general)'],
+            'COMMUNICATION':     ['Listened actively', 'Spoke English fluently and clearly'],
+            'DEMEANOUR':         ['Contributed with intention to learn', 'General demeanour'],
+            'HOSPITALITY':       ['Hospitality mindset', 'Verbal and non-verbal impact'],
+            'SELF ORGANISATION': ['Had everything prepared'],
+            'TEAMWORK':          ['Developed good working relationships', 'Promoted positive work environment'],
+            'KNOWLEDGE':         ['Knowledge Assessment', 'Bar Paperwork'],
+            'WELLBEING':         ['Emotional/Confidential', 'Physical injury', 'Minor sickness', 'Other'],
+            'APPEARANCE':        ['Overall appearance']
+        },
+        uniform: {
+            'BELT':               ['Wrong length (too short, too long)'],
+            'BODY':               ['Visible tattoo, henna', 'Visible injury, irritation, band aid, bruising'],
+            'CABIN BAG':          ['Non-standard ribbons, tags, stickers, locks', 'Damaged: wheels, handle, body', 'Discoloured, worn out, frayed threads', 'Other'],
+            'EYEBROWS':           ['Excessive eyebrow pencil or make up outside of eyebrow area', 'Other'],
+            'EYEWEAR':            ['Sunglasses worn indoors', 'Colored contact lenses', 'Other'],
+            'FACIAL HAIR/BEARD':  ['Sideburns too long', 'Other'],
+            'FEMALE STOCKINGS':   ['Damaged: hole, torn', 'Non-standard color, wrong color', 'Not standard style: thick, embroidered', 'No spare available', 'Not available', 'Dirty, stained', 'Other'],
+            'HAIR/HAIR ACCESSORIES': ['Roots regrowth, different colors', 'Non-standard hair colour', 'Non-standard length: too short, shaved except balding male', 'Other'],
+            'HANDBAG':            ['Frayed threads', 'Discoloured, peeled leather', 'Broken buckle'],
+            'HAT':                ['Removable stain, small mark, cleanable', 'Damaged: hole, torn', 'Other'],
+            'HEADPHONES/MOBILE':  ['Used outside permitted area', 'Large headphones'],
+            'HOSPITALITY':        ['Hospitality mindset: general', 'Verbal and non-verbal impact: general'],
+            'ID CARD/LANYARD':    ['Non-standard style, old style', 'Other'],
+            'JACKET':             ['Missing buttons, but has spare buttons', 'Removable stain, small mark, cleanable', 'Creased', 'Wrong size: fitted, tight', 'Discoloured, worn out, frayed threads', 'Washed at home', 'Damaged: hole, torn', 'Non-removable stain', 'Old style', 'Not available', 'Other'],
+            'KNOWLEDGE':          ['Practical assessment: side note', 'Knowledge Assessment', 'Knowledge Assessment: Bar Paperwork'],
+            'LAPTOP BAG SENIORS': ['Non-standard color', 'Non-standard style', 'Non-standard size', 'Overfilled', 'Other'],
+            'MAKE UP':            ['Wrong color lipstick, worn lip gloss', 'Wrong color eyeshadow', 'Wrong color eyeliner'],
+            'MALE SOCKS':         ['Damaged: hole, torn', 'Non-standard color, wrong color', 'Not standard style: ankle, sport socks', 'Not available', 'Dirty, stained', 'Other'],
+            'NAILS':              ['Not-standard shape', 'Not-standard colour', 'Not-standard length'],
+            'NAME BADGE':         ['Small scratch, imperfections', 'Discoloured, worn out'],
+            'OVEN GLOVES':        ['Not available'],
+            'PERSONAL JEWELRY':   ['Non approved jewellery: neck chain, bracelet', 'Non approved jewelry: male earring'],
+            'SCARF':              ['Creased', 'Removable stain, small mark, cleanable', 'Other'],
+            'SELF ORGANISATION':  ['Had everything prepared and ready for the day/each session'],
+            'SHIRT/BLOUSE':       ['Missing buttons, but has spare buttons', 'Missing buttons and no spare buttons', 'Creased', 'Overfilled pockets'],
+            'SHOES':              ['Not polished', 'Worn out', 'Damaged: hole, torn'],
+            'SKIRT':              ['Wrong size: loose', 'Wrong length: too short', 'Tailored personally'],
+            'TEAMWORK':           ['Developed good working relationships', 'Promoted a positive work environment'],
+            'TIE':                ['Removable stain, small mark, cleanable', 'Non-removable stain, irremovable stain'],
+            'TIEPIN':             ['Damaged: cracked, chipped, scratched'],
+            'TROUSERS':           ['Missing buttons, but has spare buttons', 'Slightly creased', 'Wrong size: fitted, tight', 'Discoloured, worn out, frayed threads', 'Wrong length: too short', 'Washed at home', 'Damaged: hole, torn', 'Non-removable stain', 'Old style', 'Tailored personally'],
+            'UNDERGARMENTS':      ['Non standard style: long sleeve, not round neck for male', 'Non-standard color, wrong color'],
+            'WAISTCOAT':          ['Wrong size: loose', 'Non-removable stain', 'Overfilled pockets', 'Other'],
+            'WATCH':              ['Non-standard belt', 'Non-standard face, wallpaper', 'Other'],
+            'WELLBEING':          ['Emotional/Confidential', 'Physical injury', 'Minor sickness', 'Other']
+        }
+    };
+
+    function _fbBadge(result) {
+        if (!result) return '<span class="fb-badge gray">—</span>';
+        const r = result.toLowerCase();
+        const cls = (r === 'yes' || r === 'satisfactory' || r === 'pass') ? 'green'
+                  : (r === 'no' || r === 'unsatisfactory' || r === 'fail') ? 'red'
+                  : 'amber';
+        return `<span class="fb-badge ${cls}">${result}</span>`;
+    }
+
+    function renderFeedbackTables(sf, timestamp, reviewTrainees, hasConversationId) {
+        const open = '<div class="structured-feedback" style="margin-top:12px;">';
+        const close = '</div>';
+        if (!sf) {
+            const msg = hasConversationId
+                ? '<p style="font-size:13px;font-style:italic;font-weight:700;color:#64748b;margin-top:10px;">⏳ Waiting Transcript Analysis...</p>'
+                : '<p style="color:#94a3b8;font-size:13px;font-style:italic;margin-top:10px;">No structured feedback available for this session.</p>';
+            return open + msg + close;
+        }
+        const sectionLabels = { attendance: 'Attendance & Punctuality', daily: 'Daily Observations', sidenote: 'Practical Assessments', uniform: 'Uniform Standards' };
+
+        // ── AUTO FORMAT ──────────────────────────────────────────────────────
+        if (sf.feedback && typeof sf.feedback === 'object' && !Array.isArray(sf.feedback)) {
+            const types = Object.keys(sf.feedback).filter(k => sf.feedback[k] && sf.feedback[k].length > 0);
+            const sectionsHtml = types.map(t => _renderFbSection(t, sf.feedback[t], timestamp, reviewTrainees, sectionLabels[t] || t, false)).join('');
+            if (!sectionsHtml) return open + '<p style="color:#94a3b8;font-size:13px;font-style:italic;margin-top:10px;">No structured feedback available for this session.</p>' + close;
+            return open + sectionsHtml + close;
+        }
+
+        // ── LEGACY FORMAT (read-only) ────────────────────────────────────────
+        const arr = sf.feedback || sf.trainees;
+        if (!arr || !arr.length) {
+            const msg = hasConversationId
+                ? '<p style="font-size:13px;font-style:italic;font-weight:700;color:#64748b;margin-top:10px;">⏳ Waiting Transcript Analysis...</p>'
+                : '<p style="color:#94a3b8;font-size:13px;font-style:italic;margin-top:10px;">No structured feedback available for this session.</p>';
+            return open + msg + close;
+        }
+        const first = arr[0];
+        const legType = first.categories ? 'attendance' : first.observations ? 'daily' : first.assessments ? 'sidenote' : 'uniform';
+        return open + _renderFbSection(legType, arr, null, [], sectionLabels[legType] || legType, true) + close;
+    }
+
+    function _renderFbSection(type, traineeArr, timestamp, reviewTrainees, label, isLegacy) {
+        const cols = {
+            attendance: `<th>Trainee</th><th>Category</th><th>Result</th>`,
+            daily:      `<th>Trainee</th><th>Category</th><th>Sub-item</th><th>Result</th>`,
+            sidenote:   `<th>Trainee</th><th>Assessment Name</th><th>Result</th>`,
+            uniform:    `<th>Trainee</th><th>Category</th><th>Observation</th>`
+        };
+        const cg = {
+            attendance: '<colgroup><col style="width:22%"><col style="width:22%"><col style="width:56%"></colgroup>',
+            daily:      '<colgroup><col style="width:22%"><col style="width:22%"><col style="width:22%"><col style="width:34%"></colgroup>',
+            sidenote:   '<colgroup><col style="width:22%"><col style="width:64%"><col style="width:14%"></colgroup>',
+            uniform:    '<colgroup><col style="width:22%"><col style="width:22%"><col style="width:56%"></colgroup>'
+        };
+        let rowsHtml = '';
+        let hasRows = false;
+        traineeArr.forEach((trainee) => {
+            const items = trainee.categories || trainee.observations || trainee.assessments || trainee.findings || [];
+            items.forEach((item, iIdx) => {
+                rowsHtml += _buildFbRow(type, trainee, item, iIdx === 0);
+                hasRows = true;
+            });
+        });
+        if (!hasRows) return '';
+        return `<div class="feedback-section">
+            <div class="feedback-section-title ${type}">${label}</div>
+            <table class="feedback-table">
+                ${cg[type] || ''}
+                <thead><tr>${cols[type] || '<th>Trainee</th><th>Item</th>'}</tr></thead>
+                <tbody>${rowsHtml}</tbody>
+            </table>
+        </div>`;
+    }
+
+    function _buildFbRow(type, trainee, item, isFirst) {
+        const traineeName = trainee ? (trainee.traineeName || trainee.name || '') : '';
+        const groupCls = isFirst ? 'trainee-group-start' : '';
+        const nameCell = `<td class="trainee-name">${isFirst ? traineeName : ''}</td>`;
+        let dataCells = '';
+        if (type === 'attendance') {
+            dataCells = `<td>${item.category}</td><td>${_fbBadge(item.result)}</td>`;
+        } else if (type === 'daily') {
+            dataCells = `<td>${item.category}</td><td>${item.subItem}</td><td>${_fbBadge(item.result)}</td>`;
+        } else if (type === 'sidenote') {
+            dataCells = `<td>${item.assessmentName}</td><td>${_fbBadge(item.result)}</td>`;
+        } else if (type === 'uniform') {
+            dataCells = `<td>${item.category}</td><td>${item.observation}</td>`;
+        }
+        return `<tr${groupCls ? ' class="'+groupCls+'"' : ''}>${nameCell}${dataCells}</tr>`;
+    }
+
+    // ── TRANSCRIPT POPUP ─────────────────────────────────────────────────────
+
+    async function fetchAndShowTranscript(conversationId) {
+        const popup = document.getElementById('transcriptPopup');
+        const content = document.getElementById('transcriptContent');
+        const downloadBtn = document.getElementById('transcriptDownloadBtn');
+        _transcriptDownloadData = null;
+        downloadBtn.style.display = 'none';
+        content.innerHTML = '<p style="text-align:center;color:#64748b;padding:24px;">⏳ Loading transcript...</p>';
+        popup.classList.add('visible');
+
+        try {
+            const keys = getApiKeys();
+            if (!keys.elevenlabs) {
+                content.innerHTML = '<p style="color:#dc2626;">ElevenLabs API key not configured. Please click the banner at the top to set it up.</p>';
+                return;
+            }
+            const response = await fetch(
+                `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`,
+                { headers: { 'xi-api-key': keys.elevenlabs } }
+            );
+            if (!response.ok) {
+                content.innerHTML = `<p style="color:#dc2626;">Failed to load transcript (HTTP ${response.status}). Check your API key.</p>`;
+                return;
+            }
+            const data = await response.json();
+            const transcript = data.transcript || [];
+
+            if (transcript.length === 0) {
+                content.innerHTML = '<p style="color:#64748b;font-style:italic;">No transcript messages available for this session.</p>';
+                return;
+            }
+
+            content.innerHTML = transcript.map(msg => {
+                const isAgent = msg.role === 'agent';
+                const roleClass = isAgent ? 'agent' : 'user';
+                const roleLabel = isAgent ? '🤖 Agent' : '🎙️ Trainer';
+                return `<div class="transcript-message ${roleClass}">
+                    <div class="transcript-role">${roleLabel}</div>
+                    <div>${msg.message || ''}</div>
+                </div>`;
+            }).join('');
+
+            _transcriptDownloadData = { conversationId, transcript };
+            downloadBtn.style.display = 'inline-block';
+
+        } catch (err) {
+            content.innerHTML = `<p style="color:#dc2626;">Error loading transcript: ${err.message}</p>`;
+        }
+    }
+
+    function downloadCurrentTranscript() {
+        if (!_transcriptDownloadData) return;
+        const { conversationId, transcript } = _transcriptDownloadData;
+        const lines = transcript.map(msg => {
+            const role = msg.role === 'agent' ? 'Agent' : 'Trainer';
+            return `[${role}]\n${msg.message || ''}\n`;
+        }).join('\n');
+        const blob = new Blob([lines], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `transcript-${conversationId}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    // ── ANALYSIS POPUP (kept for legacy / manual re-analysis trigger) ─────────
+
+    function showMockAnalysis(reviewIndex) {
+        const reviews = getReviews();
+        const review = reviews[reviewIndex];
+        const popup = document.getElementById('analysisPopup');
+        const content = document.getElementById('analysisContent');
+
+        // Mock structured feedback matching the expected SnapLogic agent output format
+        const mockFeedback = {
+            trainees: (review.trainees || []).map((name, i) => ({
+                name,
+                categories: [
+                    { category: 'Communication', rating: 7 + (i % 3), notes: 'Spoke clearly and engaged actively with instructions throughout the session.' },
+                    { category: 'Demeanour', rating: 8 - (i % 2), notes: 'Professional attitude demonstrated consistently. Positive presence in the group.' },
+                    { category: 'Product Knowledge', rating: 6 + (i % 4), notes: 'Demonstrated solid understanding of key procedures with minor gaps to address.' },
+                    { category: 'Teamwork', rating: 8, notes: 'Contributed positively to group activities and supported fellow trainees.' }
+                ]
+            })),
+            session_summary: `Session on ${review.date} covered ${MODE_LABELS[review.mode] || review.mode} for ${(review.trainees || []).length} trainee(s). Performance was generally satisfactory with individual areas for improvement noted.`,
+            trainer_notes: 'Follow up with individual trainees on communication skills and product knowledge gaps. Schedule next assessment in two weeks.'
+        };
+
+        const traineeCards = mockFeedback.trainees.map(t => {
+            const avgRating = Math.round(t.categories.reduce((s, c) => s + c.rating, 0) / t.categories.length);
+            const badgeClass = avgRating >= 8 ? 'high' : avgRating >= 5 ? 'mid' : 'low';
+            const catRows = t.categories.map(c => {
+                const rc = c.rating >= 8 ? 'high' : c.rating >= 5 ? 'mid' : 'low';
+                return `<div class="analysis-category">
+                    <div class="score-badge ${rc}" style="width:26px;height:26px;font-size:12px;">${c.rating}</div>
+                    <div class="analysis-category-name">${c.category}</div>
+                </div>
+                <div class="analysis-notes">${c.notes}</div>`;
+            }).join('');
+            return `<div class="analysis-trainee">
+                <h3>
+                    <div class="score-badge ${badgeClass}" style="width:30px;height:30px;font-size:14px;">${avgRating}</div>
+                    ${t.traineeName || t.name}
+                </h3>
+                ${catRows}
+            </div>`;
+        }).join('');
+
+        content.innerHTML = `
+            <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#92400e;">
+                ⚠️ <strong>Mock data</strong> — SnapLogic agent API not yet connected. This preview shows the expected analysis output format.
+            </div>
+            ${traineeCards}
+            <div class="analysis-summary-box">
+                <strong>Session Summary</strong>
+                ${mockFeedback.session_summary}
+            </div>
+            <div class="analysis-summary-box" style="margin-top:8px;">
+                <strong>Trainer Notes</strong>
+                ${mockFeedback.trainer_notes}
+            </div>
+        `;
+
+        popup.classList.add('visible');
+    }
+
+    function closePopup(id) {
+        document.getElementById(id).classList.remove('visible');
+    }
+
+    // ── INIT ─────────────────────────────────────────────────────────────────
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (document.getElementById('configModal').classList.contains('visible')) closeConfig();
+        }
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+        checkAuth();
+        checkApiKeys();
+
+        // Set today's date as default and load trainees for it
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dateSelect').value = today;
+        document.getElementById('dashboardDateFilter').value = today;
+        document.getElementById('dateFilterWrapper').classList.add('has-value');
+        loadTraineesForDate();
+    });
+
+</script>
+</body>
+</html>
