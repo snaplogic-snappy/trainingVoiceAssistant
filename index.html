@@ -1020,6 +1020,19 @@
         }
         .btn-cancel-session:hover { background: var(--dark-red); transform: translateY(-1px); }
 
+        .btn-end-session {
+            padding: 12px 24px;
+            background: #166534;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-end-session:hover { background: #14532d; transform: translateY(-1px); }
+
         /* Session Cancelled Toast */
         .toast-cancelled {
             display: none;
@@ -1543,6 +1556,9 @@
                         <div id="widgetContainer"></div>
 
                         <div class="session-btn-row" id="sessionBtnRow">
+                            <button class="btn-end-session" id="btnEndSession" onclick="manualEndSession()">
+                                ✓ End Session
+                            </button>
                             <button class="btn-cancel-session" id="btnCancelSession" onclick="cancelSession()">
                                 ✕ Cancel Session
                             </button>
@@ -2072,6 +2088,11 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
     // The ElevenLabs widget's custom events (call:ended) don't always fire
     // or carry the conversation_id. These strategies detect call completion
     // through multiple channels so no manual "End Session" click is needed.
+
+    function manualEndSession() {
+        if (!sessionActive || sessionEndHandled) return;
+        handleCallEnd(currentConversationId || null, 'manual-button');
+    }
 
     async function handleCallEnd(conversationIdHint, source) {
         if (sessionEndHandled || !sessionActive || sessionCancelled) return;
