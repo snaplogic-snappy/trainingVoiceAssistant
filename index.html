@@ -2091,6 +2091,14 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
 
     function manualEndSession() {
         if (!sessionActive || sessionEndHandled) return;
+        // Attempt to stop the ElevenLabs widget programmatically so the
+        // conversation is finalised on their side before we poll for it
+        if (currentWidget) {
+            try {
+                if (typeof currentWidget.endSession === 'function') currentWidget.endSession();
+                else if (typeof currentWidget.stop === 'function') currentWidget.stop();
+            } catch(e) { /* ignore — not all widget versions expose this */ }
+        }
         handleCallEnd(currentConversationId || null, 'manual-button');
     }
 
@@ -2563,11 +2571,19 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
 
         try {
             if (!finalConversationId) {
-                console.log('No conversation ID from widget — waiting 2s then querying API...');
-                document.getElementById('processingIndicator').textContent = '🤖 Fetching conversation ID...';
-                await sleep(2000);
-                finalConversationId = await getLatestConversationId();
-                currentConversationId = finalConversationId;
+                console.log('No conversation ID from widget — polling API until conversation appears...');
+                document.getElementById('processingIndicator').textContent = '🤖 Waiting for ElevenLabs to finalise session...';
+                // Retry up to 5 times with 4s gaps (20s total) — covers the case where
+                // the call is still live or ElevenLabs hasn't created the record yet
+                for (let attempt = 0; attempt < 5; attempt++) {
+                    await sleep(4000);
+                    finalConversationId = await getLatestConversationId();
+                    console.log(`[ConvID] Attempt ${attempt + 1}: ${finalConversationId || 'not found yet'}`);
+                    if (finalConversationId) {
+                        currentConversationId = finalConversationId;
+                        break;
+                    }
+                }
             }
 
             if (finalConversationId) {
