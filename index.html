@@ -1380,7 +1380,7 @@
 
     <!-- CONFIG BANNER -->
     <div class="config-banner" id="configBanner" onclick="openConfig()">
-        ⚙️ Click to configure ElevenLabs API key (required)
+        ⚙️ Click to configure ElevenLabs and SnapLogic API keys (required)
     </div>
 
     <!-- CONFIG MODAL -->
@@ -1695,6 +1695,10 @@
             alert('ElevenLabs API key is required.');
             return;
         }
+        if (!snaplogicToken) {
+            alert('SnapLogic API key is required.');
+            return;
+        }
 
         localStorage.setItem('apiKeys', JSON.stringify({ elevenlabs, snaplogicToken, snaplogicUrl, sharingUrl }));
         document.getElementById('configModal').classList.remove('visible');
@@ -1714,14 +1718,11 @@
     function updateConfigBanner() {
         const keys = getApiKeys();
         const banner = document.getElementById('configBanner');
-        if (!keys.elevenlabs) {
-            banner.textContent = '⚙️ Click to configure ElevenLabs API key (required)';
+        if (!keys.elevenlabs || !keys.snaplogicToken) {
+            banner.textContent = '⚙️ Click to configure ElevenLabs and SnapLogic API keys (required)';
             banner.classList.remove('configured');
-        } else if (keys.snaplogicUrl) {
-            banner.textContent = '✅ ElevenLabs + SnapLogic' + (keys.sharingUrl ? ' + Sharing' : '') + ' configured';
-            banner.classList.add('configured');
         } else {
-            banner.textContent = '✅ ElevenLabs configured — SnapLogic not set';
+            banner.textContent = '✅ ElevenLabs + SnapLogic configured';
             banner.classList.add('configured');
         }
     }
@@ -2304,6 +2305,11 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
             openConfig();
             return;
         }
+        if (!keys.snaplogicToken) {
+            alert('Please configure your SnapLogic API key first (click banner at top).');
+            openConfig();
+            return;
+        }
 
         if (!keys.snaplogicUrl) {
             alert('Please configure the SnapLogic API URL first (click banner at top).');
@@ -2786,13 +2792,13 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
 
     async function retryTranscriptAnalysis(timestamp) {
         const keys = getApiKeys();
-        if (!keys.snaplogicUrl) {
-            alert('SnapLogic URL not configured. Please click the banner at the top.');
+        if (!keys.elevenlabs) {
+            alert('ElevenLabs API key not configured. Please click the banner at the top.');
             openConfig();
             return;
         }
-        if (!keys.elevenlabs) {
-            alert('ElevenLabs API key not configured. Please click the banner at the top.');
+        if (!keys.snaplogicToken) {
+            alert('SnapLogic API key not configured. Please click the banner at the top.');
             openConfig();
             return;
         }
