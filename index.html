@@ -3007,6 +3007,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
                         <strong>Trainees:</strong> ${review.trainees.join(', ')}
                     </div>
                     ${trainerEmail ? `<div class="review-trainees" style="margin-top:4px;"><strong>Trainer:</strong> ${trainerEmail}</div>` : ''}
+                    <div class="review-trainees" style="margin-top:4px;"><strong>ElevenLabs Conversation ID:</strong> ${review.conversationId || '<span style="color:#dc2626;">not captured</span>'}</div>
                     ${structuredHtml}
                     ${summaryHtml}
                     ${sharingStatusHtml}
