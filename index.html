@@ -1395,21 +1395,21 @@
             <label>ElevenLabs API Key</label>
             <input type="password" id="inputElevenLabsKey" placeholder="sk_..." />
 
+            <label>SnapLogic API Key</label>
+            <input type="password" id="inputSnapLogicToken" placeholder="Leave empty if not required" />
+
             <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
-                <div style="font-size: 13px; font-weight: 700; color: #C60C30; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">SnapLogic Orchestrator (optional)</div>
+                <div style="font-size: 13px; font-weight: 700; color: #C60C30; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">SnapLogic Orchestrator</div>
 
                 <label>API URL</label>
                 <input type="text" id="inputSnapLogicUrl" placeholder="https://..." style="font-family: monospace; font-size: 12px;" />
-
-                <label>Bearer Token <span style="font-weight: 400; color: #999;">(optional)</span></label>
-                <input type="password" id="inputSnapLogicToken" placeholder="Leave empty if not required" />
             </div>
 
             <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
-                <div style="font-size: 13px; font-weight: 700; color: #C60C30; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Sharing Pipeline (optional)</div>
+                <div style="font-size: 13px; font-weight: 700; color: #C60C30; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">SnapLogic Feedback Sharing</div>
                 <p style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Automatically delivers structured feedback to Email, Teams, SharePoint, and the Training System after each session.</p>
 
-                <label>Sharing Pipeline URL <span style="font-weight: 400; color: #999;">(optional)</span></label>
+                <label>API URL</label>
                 <input type="text" id="inputSharingUrl" placeholder="https://... (Email, Teams, SharePoint delivery)" style="font-family: monospace; font-size: 12px;" />
             </div>
 
@@ -1655,6 +1655,12 @@
     let _callEndDetectionCleanup = null;
     let _transcriptDownloadData = null;
 
+    // Default pipeline URLs — override via config modal if needed
+    const DEFAULT_API = {
+        snaplogicUrl: 'https://eks-ultra.snaplogic-demo.com/service/ekVoiceAssistant/1.0/transcriptToFeedback',
+        sharingUrl:   'https://eks-ultra.snaplogic-demo.com/service/ekVoiceAssistant/1.0/shareFeedback'
+    };
+
     const MODE_LABELS = {
         attendance: 'Attendance & Punctuality',
         daily: 'Daily Observation',
@@ -1666,11 +1672,12 @@
     // ── API KEY MANAGEMENT ───────────────────────────────────────────────────
 
     function openConfig() {
-        const keys = getApiKeys();
-        document.getElementById('inputElevenLabsKey').value = keys.elevenlabs || '';
-        document.getElementById('inputSnapLogicUrl').value = keys.snaplogicUrl || '';
-        document.getElementById('inputSnapLogicToken').value = keys.snaplogicToken || '';
-        document.getElementById('inputSharingUrl').value = keys.sharingUrl || '';
+        const stored = localStorage.getItem('apiKeys');
+        const saved = stored ? JSON.parse(stored) : {};
+        document.getElementById('inputElevenLabsKey').value = saved.elevenlabs || '';
+        document.getElementById('inputSnapLogicToken').value = saved.snaplogicToken || '';
+        document.getElementById('inputSnapLogicUrl').value = saved.snaplogicUrl || DEFAULT_API.snaplogicUrl;
+        document.getElementById('inputSharingUrl').value = saved.sharingUrl || DEFAULT_API.sharingUrl;
         document.getElementById('configModal').classList.add('visible');
     }
 
@@ -1680,8 +1687,8 @@
 
     function saveApiKeys() {
         const elevenlabs = document.getElementById('inputElevenLabsKey').value.trim();
-        const snaplogicUrl = document.getElementById('inputSnapLogicUrl').value.trim();
         const snaplogicToken = document.getElementById('inputSnapLogicToken').value.trim();
+        const snaplogicUrl = document.getElementById('inputSnapLogicUrl').value.trim();
         const sharingUrl = document.getElementById('inputSharingUrl').value.trim();
 
         if (!elevenlabs) {
@@ -1689,14 +1696,19 @@
             return;
         }
 
-        localStorage.setItem('apiKeys', JSON.stringify({ elevenlabs, snaplogicUrl, snaplogicToken, sharingUrl }));
+        localStorage.setItem('apiKeys', JSON.stringify({ elevenlabs, snaplogicToken, snaplogicUrl, sharingUrl }));
         document.getElementById('configModal').classList.remove('visible');
         updateConfigBanner();
     }
 
     function getApiKeys() {
         const stored = localStorage.getItem('apiKeys');
-        return stored ? JSON.parse(stored) : {};
+        const saved = stored ? JSON.parse(stored) : {};
+        return {
+            ...saved,
+            snaplogicUrl: saved.snaplogicUrl || DEFAULT_API.snaplogicUrl,
+            sharingUrl:   saved.sharingUrl   || DEFAULT_API.sharingUrl
+        };
     }
 
     function updateConfigBanner() {
@@ -1774,9 +1786,16 @@
 
     // ── USER PROFILE ─────────────────────────────────────────────────────────
 
+    const DEFAULT_PROFILES = {
+        'toni':   { firstName: 'Toni',   lastName: 'BRANCO',      email: 'tbranco@snaplogic.com' },
+        'tara':   { firstName: 'Tara',   lastName: 'SHAHBAZI',    email: 'tara.shahbazi@emirates.com' },
+        'phil':   { firstName: 'Phil',   lastName: 'MATTU',       email: 'pmattu@snaplogic.com' },
+        'cherif': { firstName: 'Dr Cherif', lastName: 'BEN HAMDA', email: 'cherif.benhamda@emirates.com' }
+    };
+
     function getProfile(username) {
         const profiles = JSON.parse(localStorage.getItem('emiratesProfiles') || '{}');
-        return profiles[username] || { firstName: '', lastName: '', email: '' };
+        return profiles[username] || DEFAULT_PROFILES[username] || { firstName: '', lastName: '', email: '' };
     }
 
     function saveProfile(username, profile) {
@@ -2433,12 +2452,13 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
 
         if (!snapUrl) throw new Error('SnapLogic URL not configured.');
 
+        const trainerProfile = getProfile(sessionContext.trainer || '');
         const payload = {
             transcript: transcript,
             date: sessionContext.date,
             mode: sessionContext.mode,
             trainees: sessionContext.trainees,
-            trainer: sessionContext.trainer
+            trainer: trainerProfile.email || sessionContext.trainer
         };
 
         // ── OPTIONS preflight probe ──────────────────────────────────────────
@@ -2470,7 +2490,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
             response = await fetch(snapUrl, {
                 method: 'POST',
                 headers: {
-                    ...(snapToken ? { 'Authorization': `Bearer ${snapToken}` } : {}),
+                    ...(snapToken ? { 'sl-api-key': snapToken } : {}),
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
@@ -2721,7 +2741,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
 
         try {
             const headers = { 'Content-Type': 'application/json' };
-            if (keys.snaplogicToken) headers['Authorization'] = 'Bearer ' + keys.snaplogicToken;
+            if (keys.snaplogicToken) headers['sl-api-key'] = keys.snaplogicToken;
 
             const sf = review.structuredFeedback;
             const trainerProfile = getProfile(review.trainer || '');
@@ -2866,6 +2886,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
                    </div>`
                 : `<p style="color:#94a3b8;font-size:13px;font-style:italic;margin-top:10px;">No summary available for this session.</p>`;
 
+            const trainerEmail = (review.structuredFeedback && review.structuredFeedback.session && review.structuredFeedback.session.trainer) || '';
             const structuredHtml = renderFeedbackTables(review.structuredFeedback, review.timestamp, review.trainees || [], !!review.conversationId);
 
             const retryBtn = review.conversationId
@@ -2930,6 +2951,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
                     <div class="review-trainees">
                         <strong>Trainees:</strong> ${review.trainees.join(', ')}
                     </div>
+                    ${trainerEmail ? `<div class="review-trainees" style="margin-top:4px;"><strong>Trainer:</strong> ${trainerEmail}</div>` : ''}
                     ${structuredHtml}
                     ${summaryHtml}
                     ${sharingStatusHtml}
