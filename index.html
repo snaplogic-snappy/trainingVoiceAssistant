@@ -2091,6 +2091,10 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
 
     function manualEndSession() {
         if (!sessionActive || sessionEndHandled) return;
+        if (!callConnected && !currentConversationId) {
+            alert('No voice session was started. Please tap the microphone in the widget first, or cancel the session.');
+            return;
+        }
         // Attempt to stop the ElevenLabs widget programmatically so the
         // conversation is finalised on their side before we poll for it
         if (currentWidget) {
