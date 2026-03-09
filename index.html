@@ -2271,8 +2271,8 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
                     convCreatedMs = new Date(conv.start_time || conv.created_at).getTime();
                 }
 
-                // Only consider conversations that started after (or near) our session
-                if (convCreatedMs > 0 && convCreatedMs < sessionStartTime - 120000) return;
+                // Only consider conversations that started after (or within 30s before) our session
+                if (convCreatedMs > 0 && convCreatedMs < sessionStartTime - 30000) return;
 
                 // Capture conversation ID
                 if (convId && !currentConversationId) {
@@ -2293,18 +2293,8 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
                 }
 
                 // Phase 2: only check for ended AFTER we know a call was active.
-                // On Safari/iPad, postMessage from the ElevenLabs iframe is blocked, so
-                // callConnected may never be set via postMessage. As a fallback: if the
-                // API returns a conversation in our session's time window that is no longer
-                // active, infer that a call happened and ended. The time filter above
-                // (convCreatedMs < sessionStartTime - 120000) is sufficient protection
-                // against false positives from old conversations.
-                if (!callSeenActive && !callConnected && convId) {
-                    callSeenActive = true;
-                    callConnected = true;
-                    console.log('[AutoDetect] Call inferred from API (Safari/iPad fallback — no prior active signal)');
-                }
-
+                // We must NOT infer activity from a non-active conversation — that would
+                // cause false positives if a previous session finished within the time window.
                 if (!callSeenActive && !callConnected) return; // still waiting for call to start
 
                 const hasEnded = convId && !isActive && status !== '';
