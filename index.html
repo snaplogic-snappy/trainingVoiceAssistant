@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emirates Training — Feedback Voice Agent</title>
     <script src="https://unpkg.com/@elevenlabs/convai-widget-embed" async type="text/javascript"></script>
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-V6EHWN79W7"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-V6EHWN79W7');
+    </script>
     <style>
         :root {
             --red: #C60C30;
@@ -1400,7 +1408,6 @@
             z-index: 99;
         }
         @media (max-width: 600px) {
-            .hamburger-btn { display: inline-block; }
             .sidebar {
                 position: fixed;
                 top: 0; left: 0;
@@ -1703,6 +1710,10 @@
     const AGENT_ID = 'agent_4601kjawzyfcfystqx9wne5aj5ts';
     let currentUser = null;
     let sessionActive = false;
+
+    function logEvent(name, params = {}) {
+        if (typeof gtag === 'function') gtag('event', name, params);
+    }
     let sessionCancelled = false;
     let currentMode = 'attendance';
     let selectedDate = null;
@@ -1763,6 +1774,7 @@
         localStorage.setItem('apiKeys', JSON.stringify({ elevenlabs, snaplogicToken, snaplogicUrl, sharingUrl }));
         document.getElementById('configModal').classList.remove('visible');
         updateConfigBanner();
+        logEvent('config_saved');
     }
 
     function getApiKeys() {
@@ -1892,6 +1904,7 @@
     // ── DOWNLOAD TRANSCRIPT ──────────────────────────────────────────────────
 
     function downloadTranscriptJson(timestamp) {
+        logEvent('transcript_exported');
         const reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
         const review = reviews.find(r => r.timestamp === timestamp);
         if (!review || !review.structuredFeedback) {
@@ -2029,6 +2042,7 @@
     }
 
     function switchView(view) {
+        logEvent('view_changed', { view });
         closeSidebar();
         document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
         document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
@@ -2397,6 +2411,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
             return;
         }
 
+        logEvent('session_started', { trainer: currentUser, participants: PARTICIPANTS.length });
         sessionActive = true;
         currentMode = 'auto';
         currentConversationId = null;
@@ -2694,6 +2709,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
     // ── SESSION COMPLETE ─────────────────────────────────────────────────────
 
     function onSessionComplete({ transcriptSummary, conversationId }) {
+        logEvent('session_completed', { trainer: currentUser, participants: PARTICIPANTS.length, mode: 'auto' });
         document.getElementById('topbarTitle').textContent = 'Session Complete';
         document.getElementById('topbarSub').textContent = `Session saved · ${PARTICIPANTS.length} trainees`;
 
@@ -2815,6 +2831,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
     }
 
     async function callSharingPipeline(timestamp) {
+        logEvent('session_shared');
         const keys = getApiKeys();
         if (!keys.sharingUrl) {
             console.log('[Sharing] No sharing URL configured — skipping delivery.');
@@ -2931,6 +2948,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
     }
 
     function deleteReview(timestamp) {
+        logEvent('record_deleted');
         const reviews = JSON.parse(localStorage.getItem('emiratesReviews') || '[]');
         const updated = reviews.filter(r => r.timestamp !== timestamp);
         localStorage.setItem('emiratesReviews', JSON.stringify(updated));
