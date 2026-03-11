@@ -1567,7 +1567,7 @@
                             </div>
                         </div>
                         <div class="processing-indicator" id="processingIndicator">
-                            🤖 ElevenLabs is analysing the conversation... Please wait.
+                            🤖 Analysing the conversation... Please wait.
                         </div>
                     </div>
 
@@ -2678,7 +2678,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
 
                     // Still processing — wait and retry
                     document.getElementById('processingIndicator').textContent =
-                        `🤖 ElevenLabs is analysing the conversation... (${attempt + 1}/${maxRetries})`;
+                        `🤖 Analysing the conversation... (${attempt + 1}/${maxRetries})`;
                     await sleep(4000);
                 }
             } else {
