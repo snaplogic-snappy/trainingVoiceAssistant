@@ -1930,6 +1930,7 @@
     // ── DOWNLOAD FEEDBACK EXCEL ──────────────────────────────────────────────
 
     async function downloadFeedbackExcel(timestamp) {
+        logEvent('excel_exported');
         if (typeof XLSX === 'undefined') {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
@@ -2586,6 +2587,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
         console.group('[SnapLogic] POST request');
         console.log('URL:', snapUrl);
         console.log('Payload:', JSON.stringify(payload, null, 2));
+        logEvent('snaplogic_api_call', { type: 'analysis', trainer: sessionContext.trainer });
         let response;
         try {
             response = await fetch(snapUrl, {
@@ -2597,6 +2599,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
                 body: JSON.stringify(payload)
             });
         } catch (fetchErr) {
+            logEvent('snaplogic_api_error', { type: 'analysis', error: fetchErr.message });
             console.error('POST fetch threw (CORS blocked at browser level):', fetchErr.message);
             console.groupEnd();
             throw fetchErr;
@@ -2608,8 +2611,12 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
         console.log('Response body:', rawText);
         console.groupEnd();
 
-        if (!response.ok) throw new Error(`SnapLogic API error: ${response.status}`);
+        if (!response.ok) {
+            logEvent('snaplogic_api_error', { type: 'analysis', error: `HTTP ${response.status}` });
+            throw new Error(`SnapLogic API error: ${response.status}`);
+        }
         const result = JSON.parse(rawText);
+        logEvent('snaplogic_api_success', { type: 'analysis' });
         return result;
     }
 
@@ -2882,7 +2889,9 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
             const status = result.status || {};
             patchReview(timestamp, { sharingStatus: status });
             console.log('Sharing status saved:', status);
+            logEvent('snaplogic_api_success', { type: 'sharing' });
         } catch (err) {
+            logEvent('snaplogic_api_error', { type: 'sharing', error: err.message });
             console.error('Failed:', err.message);
             patchReview(timestamp, { sharingStatus: {
                 email: 'failed', teams: 'failed', sharepoint: 'failed',
@@ -2912,6 +2921,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
         const review = reviews.find(r => r.timestamp === timestamp);
         if (!review || !review.conversationId) return;
 
+        logEvent('retry_analysis');
         const cardId = 'review-' + timestamp.replace(/[:.]/g, '-');
         const btn = document.getElementById('retry-' + cardId);
         if (btn) { btn.textContent = '⏳ Analysing...'; btn.disabled = true; }
@@ -2934,6 +2944,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
                 trainees: review.trainees,
                 trainer: review.trainer || currentUser || 'trainer'
             });
+            logEvent('snaplogic_api_success', { type: 'retry' });
 
             const patches = { structuredFeedback: result };
             if (transcriptSummary) patches.transcriptSummary = transcriptSummary;
@@ -2941,6 +2952,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
             callSharingPipeline(timestamp);
             loadTrainingRecords();
         } catch (err) {
+            logEvent('snaplogic_api_error', { type: 'retry', error: err.message });
             console.error('[Manual Analysis] Error:', err);
             alert('Analysis failed: ' + err.message);
             if (btn) { btn.textContent = '🔄 Retry Analysis'; btn.disabled = false; }
@@ -3283,6 +3295,7 @@ Start by greeting briefly (one sentence) then ask: "What would you like to recor
     // ── TRANSCRIPT POPUP ─────────────────────────────────────────────────────
 
     async function fetchAndShowTranscript(conversationId) {
+        logEvent('show_transcript');
         const popup = document.getElementById('transcriptPopup');
         const content = document.getElementById('transcriptContent');
         const downloadBtn = document.getElementById('transcriptDownloadBtn');
